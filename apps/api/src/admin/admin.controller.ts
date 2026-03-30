@@ -1,0 +1,64 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { AdminService } from './admin.service';
+import { DesignarArbitroDto } from './dto/designar-arbitro.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+
+@ApiTags('Admin')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN')
+@Controller('api/v1/admin')
+export class AdminController {
+  constructor(private adminService: AdminService) {}
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Dashboard stats' })
+  getStats() {
+    return this.adminService.getStats();
+  }
+
+  @Get('casos')
+  @ApiOperation({ summary: 'Listar todos os casos' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  listarCasos(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.listarCasos(
+      Number(page) || 1,
+      Number(limit) || 20,
+      status,
+    );
+  }
+
+  @Get('arbitros')
+  @ApiOperation({ summary: 'Listar arbitros com carga de trabalho' })
+  listarArbitros() {
+    return this.adminService.listarArbitros();
+  }
+
+  @Post('arbitragens/:arbitragemId/designar')
+  @ApiOperation({ summary: 'Designar arbitro para caso' })
+  designarArbitro(
+    @Param('arbitragemId') arbitragemId: string,
+    @Body() dto: DesignarArbitroDto,
+    @Request() req: any,
+  ) {
+    return this.adminService.designarArbitro(arbitragemId, dto.arbitroId, req.user.sub);
+  }
+}

@@ -71,6 +71,11 @@ export default function DashboardPage() {
             <p className="text-gray-500">Bem-vindo, {user?.nome}</p>
           </div>
           <div className="flex items-center gap-4">
+            {user?.role === 'ADMIN' && (
+              <Link href="/admin" className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium hover:bg-indigo-200 transition">
+                Painel Admin
+              </Link>
+            )}
             <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
               {user?.role}
             </span>
