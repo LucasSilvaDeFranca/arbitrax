@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { authApi } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { arbitragensApi, Arbitragem } from '@/lib/arbitragens';
+import { notificacoesApi } from '@/lib/notificacoes';
 
 interface User {
   id: string;
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [arbitragens, setArbitragens] = useState<Arbitragem[]>([]);
   const [totalCasos, setTotalCasos] = useState(0);
+  const [naoLidas, setNaoLidas] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,11 +34,13 @@ export default function DashboardPage() {
     Promise.all([
       authApi.me(token),
       arbitragensApi.list({ page: '1', limit: '5' }, token),
+      notificacoesApi.list(token).catch(() => ({ naoLidas: 0 })),
     ])
-      .then(([userData, arbData]) => {
+      .then(([userData, arbData, notifData]) => {
         setUser(userData);
         setArbitragens(arbData.data);
         setTotalCasos(arbData.meta.total);
+        setNaoLidas(notifData.naoLidas);
       })
       .catch(() => {
         localStorage.clear();
@@ -88,10 +92,10 @@ export default function DashboardPage() {
             <h3 className="text-sm font-medium text-gray-500">Prazos Pendentes</h3>
             <p className="text-3xl font-bold text-yellow-600 mt-2">0</p>
           </div>
-          <div className="bg-white rounded-xl shadow p-6">
+          <Link href="/notificacoes" className="bg-white rounded-xl shadow p-6 hover:bg-gray-50 transition block">
             <h3 className="text-sm font-medium text-gray-500">Notificacoes</h3>
-            <p className="text-3xl font-bold text-gray-600 mt-2">0</p>
-          </div>
+            <p className="text-3xl font-bold text-gray-600 mt-2">{naoLidas}</p>
+          </Link>
         </div>
 
         <div className="bg-white rounded-xl shadow p-6">
