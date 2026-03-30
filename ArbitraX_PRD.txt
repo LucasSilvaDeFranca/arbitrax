@@ -1,0 +1,679 @@
+
+
+
+
+
+PRODUCT REQUIREMENTS DOCUMENT
+ArbitraX
+Arbitragem Virtual via WhatsApp + IA
+WhatsApp 1-on-1 · Meta Cloud API · Sem Twilio · Árbitro 100% Web
+
+v1.0 — Março 2026 · Marcos Rogério Scioli · OAB/SP 242.838
+
+Sumário
+
+
+
+1. Visão Geral
+
+Produto
+ArbitraX — Plataforma de Arbitragem Virtual via WhatsApp (1-on-1) com IA
+
+Slogan
+Justiça privada, acessível e rápida — direto no seu WhatsApp.
+
+Problema
+Judiciário brasileiro: 80M processos pendentes, 4–7 anos para sentença. Arbitragem tradicional é boa mas cara (R$15–40K) e burocrática. PMEs desistem de cobrar dívidas. Não existe solução que combine velocidade da IA com validade jurídica da arbitragem num canal universal.
+
+Evidência da Dor
+Métrica
+Valor
+Fonte
+Processos pendentes no Judiciário
+~80 milhões
+CNJ 2024
+Tempo médio processo (1ª instância)
+4–7 anos
+CNJ
+Custo arbitragem tradicional (até R$200K)
+R$ 15.000–40.000
+Câmaras
+PMEs que desistem de cobrar dívidas
+~60%
+SEBRAE
+Penetração WhatsApp no Brasil
+99%
+Statista 2025
+
+Solução
+ArbitraX: arbitragem 100% virtual. Partes conversam 1-on-1 com bot no WhatsApp (Meta Cloud API, sem Twilio, sem grupo). Árbitro opera pelo painel web. IA auxilia análise e gera projetos de sentença, sempre validados por árbitro humano. Lei 9.307/96.
+
+Diferenciais Arquiteturais
+WhatsApp 1-on-1 (sem grupo): sigilo reforçado, UX simples, sem confusão
+Meta Cloud API (sem Twilio): 1.000 conversas/mês gratis, economia de R$2–5K/mês
+Árbitro 100% painel web: interface profissional, sem limitações do WhatsApp
+IA + Humano: velocidade da IA com autoridade do árbitro
+Custo 5–10x menor que arbitragem tradicional
+Resolução em 15–45 dias (vs 4–7 anos)
+
+2. Objetivos e Métricas
+
+2.1 North Star Metric
+Sentenças arbitrais publicadas por mês (captura adoção + valor + monetização).
+
+2.2 KPIs por Fase
+KPI
+MVP (3m)
+Escala (12m)
+Expansão (24m)
+Sentenças/mês
+10
+100
+500
+Tempo médio até sentença
+< 30 dias
+< 20 dias
+< 15 dias
+Taxa aceitação convite
+> 50%
+> 65%
+> 75%
+Sentenças aprovadas 1ª versão
+> 60%
+> 75%
+> 85%
+NPS
+> 40
+> 55
+> 65
+Receita média/caso
+R$ 2.000
+R$ 3.500
+R$ 5.000
+MRR
+R$ 5K
+R$ 35K
+R$ 80K+
+Custo WhatsApp/mês
+< R$ 200
+< R$ 1.500
+< R$ 5.000
+
+3. Personas
+
+3.1 Carlos — Empresário PME (Requerente)
+Atributo
+Detalhe
+Idade / Cargo
+48 anos, sócio-diretor distribuidora (30 funcionários, R$5M/ano)
+Dor
+R$180K em dívidas. Advogado disse: 5+ anos na justiça. Desiste de cobrar < R$20K.
+Canal
+WhatsApp é seu canal principal. Usa pouco email.
+JTBD
+Cobrar inadimplentes de forma rápida e barata, sem anos na justiça.
+
+3.2 Marina — Advogada Corporativa
+Atributo
+Detalhe
+Idade / Cargo
+35 anos, sócia escritório boutique (8 advogados)
+Dor
+Clientes PME não pagam honorários para processos longos. Perde clientes.
+JTBD
+Oferecer resolução rápida e acessível para fidelizar clientes.
+
+3.3 Dr. Paulo — O Árbitro
+Atributo
+Detalhe
+Idade / Cargo
+55 anos, advogado sênior, professor, árbitro em 2 câmaras
+Dor
+Casos baixo valor não chegam. Redigir sentenças é trabalhoso.
+Canal
+Opera 100% pelo painel web. Não usa WhatsApp para arbitragem.
+JTBD
+Julgar mais casos com eficiência. IA redige, eu decido.
+
+3.4 Roberto — O Requerido
+Atributo
+Detalhe
+Dor
+Recebeu cobrança que considera parcialmente indevida. Quer negociar.
+Canal
+Recebe convite pelo WhatsApp (1-on-1 com bot). Aceita pela web.
+JTBD
+Resolver pendência de forma justa e rápida, sem trauma judicial.
+
+4. User Stories
+
+4.1 Epic 1: Convite e Aceitação
+ID
+Story
+Critérios
+P
+F
+US-01
+Requerente inicia arbitragem via formulário web
+Form multi-step, validação, upload docs, cálculo taxa
+M
+MVP
+US-02
+Requerente paga taxa via PIX
+QR Code, confirmação instantânea, caso avança
+M
+MVP
+US-03
+Requerido recebe convite via WhatsApp (1-on-1)
+Msg individual com resumo + link aceitação, prazo 7d
+M
+MVP
+US-04
+Requerido aceita/recusa pela web
+Página com resumo, compromisso, botões
+M
+MVP
+US-05
+Ambas partes assinam compromisso (Clicksign)
+Assinatura < 2min, PDF disponível, notif quando ambos
+M
+MVP
+
+4.2 Epic 2: Instrução via WhatsApp (1-on-1)
+ID
+Story
+Critérios
+P
+F
+US-10
+Requerente envia petição e provas no chat 1-on-1
+Bot abre prazo 10d, aceita texto+docs+mídia, confirma protocolo
+M
+MVP
+US-11
+Requerido envia contestação no chat 1-on-1
+Prazo 10d após petição, mesmas funcionalidades
+M
+MVP
+US-12
+Parte recebe lembretes de prazo via WhatsApp
+D-3, D-1, D-0, msgs individuais, claras
+M
+MVP
+US-13
+Parte envia provas adicionais via WhatsApp
+Bot explica o que falta, prazo 5d, qualquer formato
+M
+MVP
+US-14
+Bot organiza e cataloga docs recebidos
+Por tipo (doc,img,video,audio), hash SHA-256, timestamp
+M
+MVP
+
+4.3 Epic 3: Sentença (IA + Árbitro no Painel Web)
+ID
+Story
+Critérios
+P
+F
+US-20
+IA analisa provas e determina suficiência
+Retorna suficiente/insuficiente + lacunas + confiança
+M
+MVP
+US-21
+IA gera projeto de sentença
+Lei 9.307/96, ementa+relatório+fundamentação+dispositivo+custas, <10min
+M
+MVP
+US-22
+Árbitro recebe projeto no painel web
+Notificação no dashboard, viewer PDF, botões aprovar/sugerir
+M
+MVP
+US-23
+Árbitro sugere melhorias via painel
+Editor de sugestões, IA gera V2, max 5 versões
+M
+MVP
+US-24
+Árbitro ratifica sentença no painel
+Botão ratificar, prazo 3d
+M
+MVP
+US-25
+Partes recebem sentença via WhatsApp (1-on-1)
+PDF + código verificação, individualmente
+M
+MVP
+
+4.4 Epic 4: Pagamentos
+ID
+Story
+Critérios
+P
+F
+US-30
+Requerente paga registro
+PIX/boleto/cartão, confirmação, caso avança
+M
+MVP
+US-31
+Ambas partes pagam taxa arbitral (50/50)
+Cobrança individual, avança quando ambos pagam
+M
+MVP
+US-32
+Árbitro recebe honorários após sentença
+Liberado após publicação, transferência, comprovante
+M
+MVP
+US-33
+Reembolso se caso cancelado
+100% antes instrução, 50% durante, 0% após sentença
+S
+MVP
+
+4.5 Epic 5: Painéis Web
+ID
+Story
+Critérios
+P
+F
+US-40
+Parte acompanha caso no painel
+Lista casos, timeline, docs, prazos, pagamentos
+M
+MVP
+US-41
+Admin dashboard com métricas
+Casos ativos, receita, tempo médio, aceitação
+M
+MVP
+US-42
+Admin designa árbitros
+Lista disponíveis, especialidades, designar
+M
+MVP
+US-43
+Admin configura IA
+Editor prompt, modelo, temperatura, teste
+S
+MVP
+
+5. Requisitos Não Funcionais
+
+5.1 Performance
+Requisito
+Threshold
+API p95
+< 500ms
+Bot WhatsApp resposta
+< 5s
+IA gerar sentença
+< 10min
+PDF gerado
+< 30s
+Painel web FCP
+< 2s
+Uptime
+99.5% (MVP)
+
+5.2 Segurança
+Sigilo arbitral (art. 13, Lei 9.307/96) — reforçado pelo modelo 1-on-1 (partes não vêem msgs uma da outra)
+AES-256 at-rest + TLS 1.3 in-transit
+JWT (15min) + refresh (7d) + RBAC + RLS Supabase
+2FA obrigatório para árbitro e admin
+Hash SHA-256 de documentos + append-only
+LGPD: consentimento, portabilidade, retenção 5 anos
+IA NUNCA decide — árbitro humano obrigatório
+
+6. Jornadas do Usuário
+
+6.1 Requerente
+Acessa site → preenche formulário → paga R$350 via PIX
+Bot envia WhatsApp (1-on-1): “Caso criado. Convite enviado ao requerido.”
+Quando requerido aceita e ambos assinam: bot avisa
+Bot: “10 dias para enviar petição. Envie tudo aqui neste chat.”
+Requerente envia textos e docs no chat individual
+Se IA pede mais provas: bot solicita especificamente
+Sentença publicada: bot envia PDF + código individualmente
+Total: 22 dias, custo R$2.300. Sentença válida.
+
+6.2 Requerido
+Recebe WhatsApp do bot (1-on-1): convite + link
+Clica → página web → aceita → assina compromisso
+Bot: “Aguardando petição do requerente.”
+Bot: “10 dias para contestar. Envie aqui.”
+Envia contestação e provas no chat individual
+Recebe sentença individualmente via WhatsApp
+
+6.3 Árbitro (100% Painel Web)
+Recebe notificação no painel: caso designado
+Acessa caso: lê peças, provas, timeline
+IA gera projeto → badge “Sentença pendente” no dashboard
+Abre projeto. Lê. Sugere ajuste na fundamentação.
+IA gera V2. Aprova. Ratifica.
+Honorários creditados.
+
+7. Escopo por Fase
+
+7.1 MVP (15–20 dias)
+Must Have
+Formulário web + pagamento registro (Asaas PIX)
+Bot WhatsApp 1-on-1 via Meta Cloud API (sem Twilio, sem grupo)
+Convite + aceitação + assinatura (Clicksign)
+Upload peças/provas via WhatsApp (catalogadas por tipo)
+Controle de prazos + lembretes WhatsApp
+IA: análise provas + geração sentença (GPT-4o/Claude)
+Painel árbitro 100% web: revisar, aprovar, sugerir, ratificar
+Publicação sentença via WhatsApp individual
+Cobranças: registro + taxa arbitral + honorários
+Painel admin básico + painel parte
+Pós-MVP
+App mobile, portal sentenças, conciliação IA, white label, API escritórios, marketplace árbitros
+
+8. Modelo de Negócio
+
+8.1 Receita por Caso
+Valor Causa
+Registro
+Taxa Arbitral
+Honorários
+Total
+R$ 5K–10K
+R$ 200
+R$ 500
+R$ 800
+R$ 1.500
+R$ 10K–50K
+R$ 350
+R$ 1.000
+R$ 1.500
+R$ 2.850
+R$ 50K–200K
+R$ 500
+R$ 2.500
+R$ 3.500
+R$ 6.500
+R$ 200K–1M
+R$ 500
+R$ 5.000
+R$ 8.000
+R$ 13.500
+
+8.2 Unit Economics
+Métrica
+Valor
+Nota
+Receita média/caso
+R$ 2.850
+Caso R$10–50K
+Custo variável/caso
+R$ 400–700
+IA tokens + WhatsApp (Meta gratis!) + Clicksign
+Margem bruta
+~75–85%
+Meta Cloud API elimina custo Twilio
+CAC
+R$ 200–500
+Advogados como canal B2B2C
+LTV (advogado traz 5+/ano)
+R$ 14.000+
+5 × R$2.850
+LTV/CAC
+28–70x
+Excepcionalmente alto
+
+8.3 Economia vs Twilio
+Item
+Com Twilio
+Com Meta Cloud API
+Economia/mês
+Custo por conversa
+R$ 0,50–1,50
+R$ 0 (até 1K) / R$ 0,25–0,40
+R$ 500–2.000
+Custo fixo mensal
+R$ 500–1.500
+R$ 0
+R$ 500–1.500
+Custo infra (SDK)
+R$ 200–500
+R$ 0 (API direta)
+R$ 200–500
+Total estimado (100 casos/mês)
+R$ 3.000–5.000
+R$ 500–1.000
+R$ 2.000–4.000
+
+8.4 Projeção
+Mês
+Casos
+Receita/mês
+Acumulada
+3
+10
+R$ 25K
+R$ 40K
+6
+30
+R$ 85K
+R$ 200K
+12
+100
+R$ 350K
+R$ 1.5M
+24
+500
+R$ 2.5M
+R$ 15M
+
+9. Riscos e Mitigações
+
+Risco
+Prob.
+Imp.
+Mitigação
+Requerido não aceita
+Alta
+Alto
+Msg clara sobre benefícios (custo, velocidade). Canal WhatsApp familiar.
+Sentença IA frágil
+Média
+Alto
+IA é assistência. Árbitro humano valida SEMPRE. Prompts revisados por advogados.
+Questionamento judicial
+Baixa
+Alto
+Lei 9.307/96. Compromisso assinado. Contraditório. Parecer formal.
+Limites Meta Cloud API
+Média
+Médio
+1K conv gratis. Acima: R$0,25–0,40/conv. App mobile como backup.
+Custo tokens IA
+Média
+Médio
+Resumir provas antes. Modelos baratos para triagem. Cache de análises.
+Sigilo comprometido
+Baixa
+Alto
+1-on-1 reforça sigilo vs grupo. Criptografia. RLS. Audit.
+Árbitros resistem à IA
+Média
+Médio
+IA é ferramenta, não substitui. Árbitro decide. Honorários atrativos.
+Inadimplência taxas
+Alta
+Médio
+Caso só avança com pagamento. Lembretes WhatsApp. Cancelamento 10d.
+
+10. Análise Competitiva
+
+Critério
+ArbitraX
+Câmaras Trad.
+Câmaras Digitais
+Judiciário
+Canal
+✅ WhatsApp 1-on-1
+❌ Presencial
+⚠ Plataforma web
+❌ PJe
+IA sentença
+✅ Gera projeto
+❌ Manual
+⚠ Parcial
+❌ Manual
+Tempo
+15–45 dias
+6–18 meses
+3–6 meses
+4–7 anos
+Custo (até R$200K)
+R$ 1.500–6.500
+R$ 15–40K
+R$ 5–15K
+R$ 3–10K + anos
+Custo infra WhatsApp
+Meta Cloud (gratis–1K)
+N/A
+N/A
+N/A
+Sigilo
+✅ 1-on-1 reforçado
+✅ Presencial
+✅ Plataforma
+⚠ Público
+
+11. Go-to-Market
+
+11.1 Fase 1: Piloto (0–3m)
+5–10 escritórios parceiros (comercial, consumidor)
+Advogado indica ArbitraX a clientes PME
+Comissão 10% por caso indicado
+Meta: 10+ arbitragens concluídas, NPS > 40
+
+11.2 Escala (3–12m)
+OAB seccionais, CDLs, associações comerciais
+Marketing conteúdo + SEO
+Vendas B2B para empresas de cobrança
+
+11.3 Expansão (12–24m)
+White label para câmaras
+API para escritórios
+Marketplace árbitros
+
+12. Cronograma
+
+Marco
+Data
+Entrega
+Critério
+Kick-off
+Sem 1
+Repo, Supabase, Meta Cloud API
+API aprovada
+Alpha
+Sem 2
+Bot 1-on-1, auth, form
+1ª msg do bot
+Beta
+Sem 3
+Instrução, IA, sentença, painel árbitro
+1ª sentença IA
+MVP
+Sem 4
+Piloto real, pagamentos, deploy
+1ª arbitragem concluída
+Piloto
+Mês 2–3
+10 casos reais
+NPS > 40
+Escala
+Mês 6
+100 casos/mês
+MRR > R$15K
+
+13. Equipe
+
+Role
+Qtd
+Tipo
+PO / Founder (Jurídico)
+1
+Full-time
+Dev Full-Stack Sr
+1
+Freelancer
+Dev Bot/Automação
+1
+Freelancer
+Prompt Engineer
+0.5
+PJ
+Designer UI/UX
+0.5
+PJ
+
+14. Investimento
+
+Item
+Custo
+Tipo
+Desenvolvimento (2 devs)
+R$ 15.000–30.000
+Único
+Meta Cloud API (WhatsApp)
+R$ 0–200/mês
+Variável (gratis até 1K conv!)
+OpenAI / Claude API
+R$ 500–1.500/mês
+Variável
+Clicksign
+R$ 200–500/mês
+Fixo
+Supabase
+R$ 100–300/mês
+Fixo
+Asaas (gateway)
+Taxas por transação
+Variável
+Infra (Vercel+Railway)
+R$ 200–500/mês
+Fixo
+N8n Cloud
+R$ 150–350/mês
+Fixo
+Designer + Parecer jurídico
+R$ 5.000–9.000
+Único
+
+
+Valor
+Investimento inicial (único)
+R$ 20.000 – 39.000
+Custo operacional mensal
+R$ 1.150 – 3.350/mês (SEM Twilio!)
+Economia vs Twilio
+R$ 2.000–4.000/mês em escala
+Total primeiros 3 meses
+R$ 23.450 – 49.050
+Break-even
+Mês 2–3 (10 casos = R$25K receita vs R$3K custo)
+
+15. Definition of Done
+
+OpenAPI/AsyncAPI atualizada
+Cobertura testes > 80%
+Contract tests passando
+Code review aprovado
+Deploy staging + smoke test
+Regras jurídicas validadas por advogado
+Performance dentro dos thresholds
+Aprovado pelo PO
+
+
+ArbitraX — PRD v1.0
+Justiça privada, acessível e rápida — direto no seu WhatsApp.

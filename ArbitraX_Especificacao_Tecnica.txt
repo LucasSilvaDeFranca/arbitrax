@@ -1,0 +1,1024 @@
+
+
+
+
+
+ESPECIFICAÇÃO TÉCNICA
+ArbitraX
+Arbitragem Virtual via WhatsApp + IA
+WhatsApp 1-on-1 (Meta Cloud API) · Painel Web para Árbitros · Sem Twilio · Sem Grupos
+
+
+Roles · APIs · Webhooks · Telas · Pagamentos · Escopo
+
+Lei 9.307/96 · Equidade · Usos e Costumes · v1.0 — Março 2026
+
+Marcos Rogério Scioli · OAB/SP 242.838
+
+Sumário
+
+
+
+1. Escopo Geral do Sistema
+O ArbitraX é uma plataforma de arbitragem virtual com dois canais distintos: (1) WhatsApp Business (Meta Cloud API) para as partes do conflito — conversa individual 1-on-1 com o bot, sem grupos — e (2) painel web para árbitros, advogados e administradores. A IA auxilia na análise de provas e geração de projetos de sentença, sempre validados por árbitros humanos via painel web. Em conformidade com a Lei 9.307/96.
+
+1.1 Arquitetura de Canais
+Canal
+Usuários
+Funções
+Tecnologia
+WhatsApp (1-on-1)
+Requerente, Requerido
+Check-in, envio de peças e provas, notificações de prazo, recebimento de sentença
+Meta Cloud API (gratuita até 1.000 conversas/mês)
+Painel Web
+Árbitro
+Revisar caso, peças, provas. Receber projeto de sentença da IA. Aprovar, sugerir melhorias, ratificar.
+Next.js + API REST
+Painel Web
+Advogado
+Acompanhar casos, peticionar em nome do cliente, prazos
+Next.js + API REST
+Painel Web
+Admin
+Dashboard, designar árbitros, config IA, financeiro, audit
+Next.js + API REST
+Formulário Web
+Requerente
+Iniciar pedido de arbitragem (dados, docs, pagamento)
+Next.js
+
+IMPORTANTE: Não há grupos de WhatsApp. Cada parte conversa individualmente com o bot. O árbitro NUNCA usa WhatsApp — toda interação é pelo painel web. Isso reduz custo (sem Twilio), simplifica a implementação e garante sigilo processual.
+
+1.2 Fluxo Geral do Procedimento Arbitral
+Fase
+Etapa
+Canal
+Descrição
+1
+Pedido + Pagamento
+Web
+Requerente preenche formulário, paga taxa de registro
+2
+Convite ao Requerido
+WhatsApp (1-on-1)
+Bot envia convite + link de aceitação ao requerido
+3
+Assinatura do Compromisso
+Web
+Ambas as partes assinam compromisso arbitral (Clicksign)
+4
+Petição Inicial
+WhatsApp (requerente)
+Requerente envia petição e provas via chat com bot
+5
+Contestação
+WhatsApp (requerido)
+Requerido envia contestação e provas via chat com bot
+6
+Análise da IA
+Sistema (interno)
+IA analisa provas. Se insuficientes: solicita complemento via WhatsApp
+7
+Projeto de Sentença
+Painel Web (árbitro)
+Árbitro recebe projeto da IA, revisa, aprova ou sugere melhorias
+8
+Ratificação
+Painel Web (árbitro)
+Árbitro ratifica versão final
+9
+Publicação
+WhatsApp (ambas partes)
+Bot envia sentença final para cada parte individualmente
+
+1.3 Módulos do Sistema
+Módulo
+Descrição
+Fase
+Bot WhatsApp (1-on-1)
+Conversa individual com cada parte: peças, provas, prazos, sentença
+MVP
+Formulário de Pedido (Web)
+Multi-step: dados partes, objeto, valor, upload docs, pagamento
+MVP
+Assinatura Digital (Web)
+Compromisso arbitral via Clicksign/DocuSign
+MVP
+Motor de IA Jurídica
+Análise de provas, avaliação instrução, geração de sentença
+MVP
+Painel do Árbitro (Web)
+Revisar caso, aprovar/sugerir sentença, ratificar — 100% web
+MVP
+Painel Admin (Web)
+Dashboard, árbitros, casos, config IA, financeiro, audit
+MVP
+Painel Parte/Advogado (Web)
+Acompanhar casos, docs, prazos, pagamentos
+MVP
+Gestão de Prazos
+Controle automático com notificações WhatsApp + web
+MVP
+Módulo de Pagamentos
+Taxas arbitrais, honorários (Asaas: PIX, boleto, cartão)
+MVP
+Gestão Documental
+Upload, catalogação, hash SHA-256, storage criptografado
+MVP
+
+1.4 Stack Técnica
+Camada
+Tecnologia
+Justificativa
+Frontend Web
+Next.js 14+ (App Router) + Tailwind CSS
+SSR, SEO, painéis, formulários
+Backend API
+Node.js (NestJS)
+Modular, tipado, docs Swagger automática
+Banco de Dados
+PostgreSQL (Supabase)
+RLS multi-tenant, audit log, real-time
+WhatsApp
+Meta Cloud API (gratuita até 1K conversas/mês)
+SEM Twilio — custo zero/mínimo, API direta
+IA / LLM
+OpenAI GPT-4o API (ou Anthropic Claude)
+Análise jurídica, geração de sentença
+Automação
+N8n (self-hosted)
+Fluxos do bot, cron de prazos, integrações
+Assinatura Digital
+Clicksign API
+Compromisso arbitral com validade jurídica
+Storage
+Supabase Storage (criptografado)
+Documentos, provas, sentenças
+Fila / Eventos
+Redis + BullMQ
+IA assíncrona, PDFs, prazos agendados
+Pagamentos
+Asaas
+PIX, boleto, cartão — BR nativo, barato
+Infra
+Vercel (front) + Railway (back) + Supabase
+Custo baixo, escalabilidade
+CI/CD
+GitHub Actions
+Lint, testes, deploy
+Monitoring
+Sentry + Uptime Kuma
+Erros, uptime
+
+Por que Meta Cloud API e não Twilio?
+Até 1.000 conversas/mês gratuitas (service conversations)
+Custo por conversa muito menor: ~R$ 0,25–0,50 vs R$ 0,50–1,50 no Twilio
+API nativa da Meta — sem intermediário, menor latência
+Suporte a mídia (docs, fotos, vídeos, áudio) nativamente
+Templates de mensagem aprovados para notificações (convite, prazos, sentença)
+Economia estimada: R$ 2.000–5.000/mês em escala vs Twilio
+
+2. Roles (Perfis de Usuário)
+RBAC com perfis que refletem a estrutura processual. Diferença-chave: árbitro opera 100% no painel web; partes operam no WhatsApp.
+
+2.1 Requerente (Autor)
+Canal: WhatsApp (1-on-1) + Web (formulário e painel)
+Iniciar pedido de arbitragem via formulário web
+Pagar taxa de registro (web)
+Assinar compromisso arbitral (web / Clicksign)
+Enviar petição inicial e provas via WhatsApp (conversa com bot)
+Enviar provas adicionais quando solicitado pelo bot
+Receber notificações de prazo via WhatsApp
+Receber sentença final via WhatsApp + download no painel
+Acompanhar caso no painel web (visão opcional)
+
+2.2 Requerido (Réu)
+Canal: WhatsApp (1-on-1) + Web (aceitação e painel)
+Receber convite de arbitragem via WhatsApp
+Aceitar/recusar via link (página web)
+Assinar compromisso arbitral (web / Clicksign)
+Enviar contestação e provas via WhatsApp
+Receber notificações e sentença via WhatsApp
+
+2.3 Advogado
+Canal: Painel Web (100%)
+Acompanhar casos dos clientes no painel
+Peticionar em nome do cliente via painel web
+Upload de provas via painel
+Gerenciar prazos de múltiplos clientes
+Receber notificações por email
+
+2.4 Árbitro
+Canal: Painel Web (100%) — NÃO usa WhatsApp
+Receber designação de caso no painel
+Acessar peças, provas e timeline do caso no painel
+Receber projeto de sentença da IA no painel
+Aprovar sentença ou enviar sugestões de melhoria via painel
+Ratificar sentença final via painel
+Solicitar provas adicionais (o bot notifica as partes)
+Declarar impedimento/suspeição
+Consultar histórico de casos e honorários
+
+2.5 Administrador
+Canal: Painel Web (100%)
+CRUD de usuários, árbitros, casos
+Designar árbitros para casos
+Configurar prompts e modelos da IA
+Gerenciar templates (compromisso, sentença)
+Dashboard financeiro: receita, honorários, inadimplência
+Audit logs e métricas
+Config. sistema: prazos, taxas, parâmetros
+
+2.6 Matriz de Permissões
+Funcionalidade
+Requerente
+Requerido
+Advogado
+Árbitro
+Admin
+Iniciar arbitragem (web)
+✅
+—
+✅
+—
+✅
+Enviar peças via WhatsApp
+✅
+✅
+—
+—
+—
+Enviar peças via painel web
+✅
+✅
+✅
+—
+—
+Receber sentença via WhatsApp
+✅
+✅
+—
+—
+—
+Revisar sentença (painel)
+—
+—
+—
+✅
+✅
+Aprovar/sugerir sentença
+—
+—
+—
+✅
+—
+Ratificar sentença
+—
+—
+—
+✅
+—
+Designar árbitros
+—
+—
+—
+—
+✅
+Config. IA / prompts
+—
+—
+—
+—
+✅
+Pagamentos (pagar)
+✅
+✅
+—
+—
+—
+Honorários (receber)
+—
+—
+—
+✅
+—
+Audit logs
+—
+—
+—
+—
+✅
+
+3. APIs do Sistema
+RESTful com JWT. Documentação OpenAPI/Swagger. Base: /api/v1/...
+
+3.1 API de Autenticação
+Método
+Endpoint
+Descrição
+Auth
+POST
+/api/v1/auth/register
+Cadastro (parte, advogado, árbitro)
+Público
+POST
+/api/v1/auth/login
+Login email/senha
+Público
+POST
+/api/v1/auth/whatsapp/verify
+Verificar OTP WhatsApp
+Público
+POST
+/api/v1/auth/refresh
+Renovar token
+Refresh
+GET
+/api/v1/auth/me
+Dados do usuário logado
+JWT
+
+3.2 API de Arbitragens
+Método
+Endpoint
+Descrição
+Auth
+POST
+/api/v1/arbitragens
+Criar pedido (dados, objeto, valor, docs)
+JWT
+GET
+/api/v1/arbitragens
+Listar casos do usuário (filtros)
+JWT
+GET
+/api/v1/arbitragens/:id
+Detalhe completo
+JWT
+PATCH
+/api/v1/arbitragens/:id/status
+Atualizar status
+JWT (Admin/Bot)
+POST
+/api/v1/arbitragens/:id/convite
+Enviar convite ao requerido via WhatsApp
+Bot
+POST
+/api/v1/arbitragens/:id/aceitar
+Requerido aceita
+JWT
+POST
+/api/v1/arbitragens/:id/recusar
+Requerido recusa
+JWT
+GET
+/api/v1/arbitragens/:id/timeline
+Timeline de eventos
+JWT
+
+3.3 API de Compromisso Arbitral
+Método
+Endpoint
+Descrição
+Auth
+POST
+/api/v1/arbitragens/:id/compromisso
+Gerar compromisso + enviar Clicksign
+Bot/Admin
+GET
+/api/v1/arbitragens/:id/compromisso
+Status de assinaturas
+JWT
+GET
+/api/v1/arbitragens/:id/compromisso/pdf
+Download PDF assinado
+JWT
+
+3.4 API de Peças e Provas
+Método
+Endpoint
+Descrição
+Auth
+POST
+/api/v1/arbitragens/:id/pecas
+Protocolar peça (petição, contestação)
+JWT
+GET
+/api/v1/arbitragens/:id/pecas
+Listar peças do caso
+JWT
+POST
+/api/v1/arbitragens/:id/provas
+Upload de prova (doc, img, video, audio)
+JWT
+GET
+/api/v1/arbitragens/:id/provas
+Listar provas
+JWT
+GET
+/api/v1/arbitragens/:id/provas/:pid/download
+Download prova
+JWT
+
+3.5 API de Sentença Arbitral
+Método
+Endpoint
+Descrição
+Auth
+POST
+/api/v1/arbitragens/:id/sentenca/gerar
+Acionar IA para gerar projeto
+Bot/Admin
+GET
+/api/v1/arbitragens/:id/sentenca
+Consultar sentença atual
+JWT
+GET
+/api/v1/arbitragens/:id/sentenca/versoes
+Listar versões
+JWT (Árbitro)
+POST
+/api/v1/arbitragens/:id/sentenca/aprovar
+Árbitro aprova projeto (via painel web)
+JWT (Árbitro)
+POST
+/api/v1/arbitragens/:id/sentenca/sugerir
+Árbitro sugere melhorias (via painel web)
+JWT (Árbitro)
+POST
+/api/v1/arbitragens/:id/sentenca/ratificar
+Árbitro ratifica final (via painel web)
+JWT (Árbitro)
+POST
+/api/v1/arbitragens/:id/sentenca/publicar
+Publicar + enviar para partes via WhatsApp
+Bot/Admin
+GET
+/api/v1/arbitragens/:id/sentenca/pdf
+Download PDF
+JWT
+
+3.6 API de Árbitros
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/v1/arbitros
+Listar árbitros
+JWT (Admin)
+POST
+/api/v1/arbitros
+Cadastrar árbitro
+JWT (Admin)
+POST
+/api/v1/arbitragens/:id/arbitros/designar
+Designar para caso
+JWT (Admin)
+GET
+/api/v1/arbitros/:id/casos
+Casos do árbitro
+JWT (Árbitro)
+POST
+/api/v1/arbitros/:id/impedimento
+Declarar impedimento
+JWT (Árbitro)
+
+3.7 API de Prazos e Notificações
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/v1/arbitragens/:id/prazos
+Listar prazos do caso
+JWT
+POST
+/api/v1/arbitragens/:id/prazos
+Criar prazo manual
+JWT (Admin)
+GET
+/api/v1/notificacoes
+Notificações do usuário
+JWT
+PATCH
+/api/v1/notificacoes/:id/lida
+Marcar como lida
+JWT
+
+3.8 API de Pagamentos
+Método
+Endpoint
+Descrição
+Auth
+POST
+/api/v1/billing/cobrancas
+Gerar cobrança
+JWT (Admin/Bot)
+GET
+/api/v1/billing/cobrancas
+Listar cobranças
+JWT
+POST
+/api/v1/billing/cobrancas/:id/pagar
+Pagar (PIX/boleto/cartão)
+JWT
+GET
+/api/v1/billing/cobrancas/:id/comprovante
+Comprovante
+JWT
+POST
+/api/v1/billing/arbitros/:id/pagamento
+Pagar honorários
+JWT (Admin)
+
+3.9 API de IA
+Método
+Endpoint
+Descrição
+Auth
+POST
+/api/v1/ia/analisar-provas
+IA avalia suficiência de provas
+Bot/Admin
+POST
+/api/v1/ia/gerar-sentenca
+IA gera projeto de sentença
+Bot/Admin
+POST
+/api/v1/ia/refinar-sentenca
+IA incorpora sugestões do árbitro
+Bot/Admin
+POST
+/api/v1/ia/resumir-caso
+IA gera resumo executivo
+Bot/Admin
+GET
+/api/v1/ia/modelos
+Listar prompts/modelos
+JWT (Admin)
+PATCH
+/api/v1/ia/modelos/:id
+Atualizar prompt
+JWT (Admin)
+
+3.10 API WhatsApp (Meta Cloud API)
+Webhook de Entrada
+Evento
+Endpoint
+Descrição
+messages
+POST /webhooks/whatsapp
+Mensagem recebida de parte (texto, doc, mídia)
+statuses
+POST /webhooks/whatsapp
+Status: sent, delivered, read, failed
+
+Mensagens Enviadas (Templates)
+Template
+Destino
+Quando
+convite_arbitragem
+Requerido
+Após pagamento do registro
+lembrete_prazo
+Parte
+D-3, D-1, D-0 de cada prazo
+prazo_expirado
+Parte
+Quando prazo expira
+solicitar_provas
+Parte
+IA identifica lacunas
+sentenca_publicada
+Ambas partes
+Após ratificação pelo árbitro
+pagamento_pendente
+Parte
+Cobrança gerada
+boas_vindas
+Parte
+Após assinatura do compromisso
+
+4. Webhooks e Eventos
+
+4.1 Webhooks Recebidos
+Origem
+Evento
+Endpoint
+Descrição
+Meta Cloud API
+messages
+POST /webhooks/whatsapp
+Mensagem/doc/mídia de parte
+Meta Cloud API
+statuses
+POST /webhooks/whatsapp
+Status de entrega
+Clicksign
+document.signed
+POST /webhooks/assinatura
+Parte assinou compromisso
+Clicksign
+document.completed
+POST /webhooks/assinatura
+Ambos assinaram
+Asaas
+payment.confirmed
+POST /webhooks/pagamento
+Pagamento confirmado
+Asaas
+payment.failed
+POST /webhooks/pagamento
+Falha no pagamento
+
+4.2 Eventos Internos (Event Bus)
+Evento
+Ação Disparada
+arbitragem.criada
+Gerar cobrança de registro
+pagamento.registro.confirmado
+Gerar compromisso + enviar convite WhatsApp
+convite.aceito
+Enviar links Clicksign para ambas partes
+convite.recusado
+Encerrar caso + notificar requerente (WhatsApp)
+compromisso.assinado_ambos
+Gerar cobrança taxa arbitral + designar árbitro
+pagamento.taxa.confirmado
+Abrir prazo petição inicial + notificar requerente (WhatsApp)
+peca.protocolada (contestação)
+Acionar IA para análise de provas
+ia.provas_insuficientes
+Bot solicita provas adicionais via WhatsApp (prazo 5 dias)
+ia.provas_suficientes
+Acionar IA para gerar projeto de sentença
+sentenca.projeto_gerado
+Notificar árbitro no painel web (+ email)
+sentenca.aprovada_arbitro
+Gerar versão final para ratificação
+sentenca.sugestao_arbitro
+Acionar IA para refinar sentença
+sentenca.ratificada
+Publicar sentença + enviar via WhatsApp para ambas partes
+prazo.expirado
+Notificar parte via WhatsApp + escalonar se necessário
+
+4.3 Política de Entrega
+Parâmetro
+Valor
+Timeout
+10 segundos
+Retries
+3 (backoff: 1min, 5min, 30min)
+Validação
+HMAC-SHA256 + timestamp (window 5min)
+Idempotency
+UUID por delivery
+
+5. Pagamentos
+
+5.1 Tipos de Cobrança
+Tipo
+Quem Paga
+Quando
+Cálculo
+Taxa de Registro
+Requerente
+Ao criar caso
+Fixo (R$150–500) ou % do valor
+Taxa Arbitral
+Ambas partes (50/50)
+Após assinatura compromisso
+Tabela progressiva
+Honorários Árbitro
+Ambas partes (50/50)
+Após publicação sentença
+Por faixa de valor
+Taxa Urgência
+Quem solicitar
+Opcional
+50% adicional
+
+5.2 Tabela de Custas
+Valor da Causa
+Registro
+Taxa Arbitral
+Honorários
+Total
+R$ 5K–10K
+R$ 200
+R$ 500
+R$ 800
+R$ 1.500
+R$ 10K–50K
+R$ 350
+R$ 1.000
+R$ 1.500
+R$ 2.850
+R$ 50K–200K
+R$ 500
+R$ 2.500
+R$ 3.500
+R$ 6.500
+R$ 200K–1M
+R$ 500
+R$ 5.000
+R$ 8.000
+R$ 13.500
+
+5.3 Métodos
+PIX: QR Code dinâmico, confirmação instantânea via webhook
+Boleto: geração automática, vencimento configurável
+Cartão: cobrança única (tokenização no frontend)
+Transferência: honorários de árbitros
+
+6. Telas do Sistema
+
+6.1 Área Pública / Onboarding
+Tela
+Descrição
+Componentes
+Landing Page
+Institucional: o que é, como funciona, preços
+Hero, etapas, FAQ, CTA, depoimentos
+Formulário de Pedido
+Multi-step para iniciar arbitragem
+Steps: dados partes, advogados, objeto, valor, upload, pagamento
+Cadastro / Login
+Registro e auth
+Email/senha, OTP WhatsApp, Google OAuth
+Aceitação do Convite
+Requerido visualiza e aceita/recusa
+Resumo caso, compromisso, botões aceitar/recusar
+Assinatura Compromisso
+Integração Clicksign
+Viewer doc, assinatura, confirmação
+Verificação Sentença
+Verificar autenticidade via código
+Input código, dados, download PDF
+
+6.2 Painel da Parte (Requerente / Requerido)
+Tela
+Descrição
+Componentes
+Dashboard
+Resumo de casos, prazos, notificações
+Cards KPI, lista casos, alertas
+Detalhe do Caso
+Visão completa
+Timeline, status, participantes, docs, prazos
+Provas / Documentos
+Upload e lista
+Drag-and-drop, preview, filtros por tipo
+Sentença
+Visualizar sentença publicada
+PDF viewer, download, código verificação
+Pagamentos
+Cobranças e status
+Lista, botão pagar, comprovantes
+Perfil
+Dados pessoais
+Edição, preferências notificação
+
+6.3 Painel do Árbitro (100% Web)
+O árbitro opera inteiramente pelo painel web. Não recebe nada pelo WhatsApp.
+Tela
+Descrição
+Componentes
+Dashboard
+Casos designados, sentenças pendentes, métricas
+KPIs, alertas sentença pendente, carga de trabalho
+Detalhe do Caso
+Peças, provas, timeline completa
+Documentos organizados, histórico, participantes
+Projeto de Sentença
+Revisar, aprovar ou sugerir
+Viewer sentença, editor sugestões, botões aprovar/sugerir
+Versões da Sentença
+Histórico de versões com diff
+Comparação lado a lado, sugestões incorporadas
+Ratificação
+Ratificar versão final
+Viewer final, botão RATIFICAR, confirmação
+Impedimento
+Declarar impedimento/suspeição
+Motivo, justificativa, confirmação
+Honorários
+Recebimentos e pendentes
+Lista, valores, status, comprovantes
+Histórico
+Sentenças anteriores
+Lista, filtros, download, estatísticas
+
+6.4 Painel Administrativo
+Tela
+Descrição
+Componentes
+Dashboard
+Overview da plataforma
+Casos ativos, receita, tempo médio, funil
+Gestão de Casos
+Todos os casos + ações
+Tabela, filtros, designar árbitro, alterar status
+Gestão de Árbitros
+CRUD + carga de trabalho
+Lista, especialidades, casos atribuídos
+Configuração IA
+Prompts e modelos
+Editor prompt, modelo, temperatura, teste
+Templates
+Compromisso e sentença
+Editor variáveis, preview, versionamento
+Financeiro
+Receita, honorários, inadimplência
+Gráficos, tabelas, export
+Audit Log
+Ações do sistema
+Timeline, filtros
+Config. Sistema
+Parâmetros globais
+Prazos, taxas, WhatsApp config
+
+6.5 Fluxos WhatsApp (1-on-1 com Bot)
+Cada fluxo é uma conversa individual entre a parte e o bot. Não há grupo.
+Fluxo
+Parte
+Mensagens
+Convite
+Requerido
+Resumo caso + link aceitação + explicação arbitragem
+Boas-vindas
+Ambas
+Confirmação de entrada no caso + instruções
+Abertura de Prazo
+Parte responsável
+Tipo da peça, prazo em dias, data limite, como enviar
+Recebimento de Peça
+Parte que enviou
+Confirmação de protocolo + número + timestamp
+Lembrete Prazo
+Parte responsável
+D-3, D-1, D-0: dias restantes + instruções
+Solicitar Provas
+Parte indicada pela IA
+Justificativa + tipos aceitos + prazo 5 dias
+Sentença Publicada
+Ambas partes
+PDF sentença + código verificação + encerramento
+Pagamento Pendente
+Parte devedora
+Valor + PIX QR Code + prazo
+
+7. Modelo de Dados
+
+Entidade
+Campos Principais
+Rel.
+users
+id, nome, cpf_cnpj, email, telefone, role, oab_numero, ativo
+Participa de arbitragens
+arbitragens
+id, numero, requerente_id, requerido_id, adv_req_id, adv_reqdo_id, objeto, valor_causa, categoria, urgencia, status (enum 17 valores), created_at
+Has: pecas, provas, sentencas, prazos, cobrancas
+arbitragem_arbitros
+id, arbitragem_id, arbitro_id, status, designado_at
+Join table
+compromissos
+id, arbitragem_id, pdf_url, hash_sha256, clicksign_key, assin_req_at, assin_reqdo_at, status
+Belongs to arbitragem
+pecas
+id, arbitragem_id, autor_id, tipo (enum), conteudo, anexos[], protocolada_at
+Belongs to arbitragem
+provas
+id, arbitragem_id, parte_id, tipo (enum), descricao, arquivo_url, hash_sha256, mime_type
+Belongs to arbitragem
+sentencas
+id, arbitragem_id, versao, conteudo, pdf_url, hash, codigo_verif, status, gerada_por
+Has: aprovacoes
+sentenca_aprovacoes
+id, sentenca_id, arbitro_id, acao (aprovar|sugerir|ratificar), sugestoes
+Belongs to sentenca
+prazos
+id, arbitragem_id, tipo, parte_id, inicio, fim, status, notificado_3d/1d/exp
+Belongs to arbitragem
+cobrancas
+id, arbitragem_id, pagador_id, tipo, valor, status, gateway_id, vencimento, pago_at
+Belongs to arbitragem
+whatsapp_messages
+id, arbitragem_id, user_id, wa_message_id, direcao (in|out), tipo, conteudo, media_url
+Log de conversa
+templates
+id, tipo, nome, conteudo, variaveis[], ativo
+Compromisso e sentença
+ia_prompts
+id, tipo, modelo, prompt_sistema, prompt_template, temp, ativo
+Config IA
+audit_logs
+id, user_id, acao, entidade, entidade_id, dados_antes, dados_depois, ip
+Rastreabilidade
+
+8. Fluxo WhatsApp Detalhado (1-on-1)
+Cada parte conversa individualmente com o bot. Não existe grupo. O bot gerencia o estado de cada caso e direciona mensagens para a pessoa correta no momento certo.
+
+8.1 Fluxo do Requerente
+Requerente preenche formulário web → paga taxa → caso criado
+Bot envia WhatsApp ao requerente: “Caso ARB-2026-00015 criado. Convite enviado ao requerido.”
+Quando requerido aceita e ambos assinam: bot avisa requerente
+Bot abre prazo: “Você tem 10 dias para enviar sua petição inicial e provas. Envie tudo aqui neste chat.”
+Requerente envia textos e documentos no chat. Bot confirma cada recebimento.
+Se IA solicita provas adicionais: bot pede ao requerente especificamente o que falta
+Quando sentença é publicada: bot envia PDF + código de verificação
+
+8.2 Fluxo do Requerido
+Bot envia convite: “Você foi convidado para arbitragem. Caso: [resumo]. Clique para aceitar: [link]”
+Requerido clica → página web → aceita → assina compromisso
+Bot envia: “Compromisso assinado. Aguardando petição do requerente.”
+Quando petição protocolada: bot avisa: “Você tem 10 dias para contestar. Envie aqui.”
+Requerido envia contestação e provas no chat
+Sentença publicada: bot envia PDF individualmente
+
+8.3 Fluxo do Árbitro (Painel Web)
+Admin designa árbitro → notificação no painel web (badge/alerta)
+Árbitro acessa caso no painel: lê peças, provas, timeline
+Quando IA gera projeto de sentença: notificação no painel (+ email opcional)
+Árbitro abre projeto no painel. Lê ementa, relatório, fundamentação, dispositivo.
+Opção A: clica “Aprovar” → sentença avança para ratificação
+Opção B: escreve sugestões → IA gera nova versão → árbitro reavalia
+Após aprovação: clica “Ratificar” na versão final
+Sentença publicada. Honorários liberados.
+
+9. Segurança e Compliance
+
+9.1 Sigilo
+Confidencialidade obrigatória (art. 13, Lei 9.307/96)
+Conversas 1-on-1 (sem grupo) reforçam sigilo — partes não vêem msgs uma da outra
+Criptografia at-rest AES-256 + in-transit TLS 1.3
+RLS no Supabase: cada usuário só vê seus próprios casos
+Audit log de todos os acessos
+
+9.2 Auth
+JWT access (15min) + refresh (7d)
+RBAC por endpoint
+2FA obrigatório para árbitro e admin
+Rate limiting: 60 req/min
+
+9.3 Integridade
+Hash SHA-256 de cada documento
+Assinatura Clicksign com validade jurídica
+Código de verificação na sentença
+Append-only: peças e provas não editáveis
+
+9.4 LGPD
+Consentimento explícito no compromisso
+Direito de acesso e portabilidade
+Retenção: 5 anos
+DPO designado
+
+10. Roadmap Técnico
+
+10.1 MVP (15–20 dias)
+Dia
+Etapa
+Entregas
+1–3
+Setup + Auth
+Supabase, NestJS, CI/CD, auth JWT, modelo dados, Meta Cloud API aprovada
+4–6
+Formulário + Pagamento
+Form web multi-step, integração Asaas, cobrança registro
+7–9
+Bot WhatsApp 1-on-1
+Meta Cloud API, convite, fluxos de conversa individual, catalogação
+10–12
+Compromisso + Assinatura
+Clicksign integração, geração PDF, webhooks assinatura
+10–12
+Instrução
+Peças, provas, prazos, lembretes automáticos
+13–15
+IA + Sentença
+OpenAI/Claude, análise provas, geração sentença, refinamento
+13–15
+Painel Árbitro
+Tela revisão, aprovar/sugerir, ratificar — 100% web
+16–17
+Painéis + Admin
+Dashboard admin, painel parte, painel advogado
+18–20
+Testes + Piloto
+Testes integração, arbitragem piloto, ajustes, deploy
+
+10.2 Pós-MVP
+App mobile (React Native)
+Portal público de consulta de sentenças
+Conciliação pré-arbitral por IA
+Marketplace de árbitros com avaliações
+White label para câmaras arbitrais
+API pública para escritórios
+Integração PJe
+
+
+ArbitraX — Especificação Técnica v1.0
+Justiça privada, acessível e rápida — direto no seu WhatsApp.

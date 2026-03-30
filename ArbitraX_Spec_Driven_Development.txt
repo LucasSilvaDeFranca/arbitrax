@@ -1,0 +1,524 @@
+
+
+
+
+
+SPEC-DRIVEN DEVELOPMENT
+ArbitraX
+Arbitragem Virtual — WhatsApp 1-on-1 + Painel Web
+Meta Cloud API · Sem Twilio · Sem Grupos · Árbitro 100% Web
+
+v1.0 — Março 2026 · Marcos Rogério Scioli · OAB/SP 242.838
+
+Sumário
+
+
+
+1. Introdução ao Spec-Driven Development
+Contrato técnico do ArbitraX seguindo SDD. Arquitetura: WhatsApp 1-on-1 via Meta Cloud API (sem Twilio, sem grupos), árbitro 100% painel web, IA assistida com validação humana obrigatória.
+
+1.1 Ferramentas
+Ferramenta
+Função
+Fase
+OpenAPI 3.1
+Spec APIs REST
+Design
+AsyncAPI 3.0
+Webhooks + eventos
+Design
+Prisma Schema
+Source of truth DB
+Design
+Prism
+Mock server da spec
+Mock
+openapi-typescript / orval
+Tipos TS + SDK auto-gerados
+Mock
+Dredd
+Testes contrato API vs spec
+Validate
+Schemathesis
+Fuzzing contra spec
+Validate
+spectral
+Lint OpenAPI
+Validate
+GitHub Actions
+CI: lint, gen, test, deploy
+Deploy
+
+1.2 Workflow
+Design: OpenAPI + AsyncAPI + Prisma Schema
+Review: PR revisado por front + back + jurídico
+Mock: Prism mock server + stubs cliente
+Implement: Backend implementa; Frontend consome mocks
+Validate: Dredd/Schemathesis validam conformidade
+Deploy: CI valida spec antes de merge
+
+2. Estrutura do Repositório
+
+arbitrax/
+├── specs/                          # SOURCE OF TRUTH
+│   ├── openapi/
+│   │   ├── openapi.yaml
+│   │   ├── paths/ (auth, arbitragens, compromisso, pecas,
+│   │   │         provas, sentenca, arbitros, prazos, billing, ia)
+│   │   ├── components/ (schemas, parameters, responses)
+│   │   └── examples/
+│   ├── asyncapi/asyncapi.yaml
+│   ├── database/schema.prisma + migrations/
+│   └── ui/ (screens.yaml, wireframes/)
+├── apps/ (api/, web/, whatsapp-bot/)
+├── packages/ (sdk/, types/, validators/)
+├── tests/ (contract/, integration/, e2e/)
+└── .github/workflows/
+
+3. OpenAPI 3.1 — Contratos
+
+3.1 POST /api/v1/arbitragens — Criar Pedido
+Campo
+Tipo
+Obrig.
+Descrição
+requerido_nome
+string
+Sim
+Nome do requerido
+requerido_cpf_cnpj
+string
+Sim
+CPF/CNPJ
+requerido_telefone
+string
+Sim
+WhatsApp (+55...)
+objeto
+string
+Sim
+Descrição do conflito (min 50 chars)
+valor_causa
+number
+Sim
+Valor em R$ (min 1.000)
+categoria
+enum
+Sim
+comercial|trabalhista|consumidor|imobiliario|societario|outro
+urgencia
+boolean
+Não
+Tramitação acelerada
+documentos
+file[]
+Não
+Docs iniciais
+
+Response 201
+{
+  "id": "uuid", "numero": "ARB-2026-00015",
+  "status": "aguardando_pagamento_registro",
+  "taxa_registro": 350.00,
+  "pix_qrcode": "00020126..."
+}
+
+State Machine — Arbitragem (17 transições)
+AGUARDANDO_PAGAMENTO_REGISTRO  →  AGUARDANDO_ACEITE
+AGUARDANDO_ACEITE              →  AGUARDANDO_ASSINATURA | RECUSADA
+AGUARDANDO_ASSINATURA          →  AGUARDANDO_PAGAMENTO_TAXA
+AGUARDANDO_PAGAMENTO_TAXA      →  EM_INSTRUCAO
+EM_INSTRUCAO                   →  AGUARDANDO_PETICAO
+AGUARDANDO_PETICAO             →  AGUARDANDO_CONTESTACAO
+AGUARDANDO_CONTESTACAO         →  ANALISE_PROVAS
+ANALISE_PROVAS                 →  AGUARDANDO_PROVAS_ADICIONAIS | GERANDO_SENTENCA
+AGUARDANDO_PROVAS_ADICIONAIS   →  GERANDO_SENTENCA
+GERANDO_SENTENCA               →  SENTENCA_EM_REVISAO
+SENTENCA_EM_REVISAO            →  GERANDO_SENTENCA | SENTENCA_APROVADA
+SENTENCA_APROVADA              →  SENTENCA_RATIFICADA
+SENTENCA_RATIFICADA            →  ENCERRADA
+qualquer                       →  CANCELADA
+
+3.2 Sentença — Contratos do Árbitro (Painel Web)
+POST /sentenca/aprovar
+Árbitro aprova projeto no painel web. Sem parâmetros extras — autenticação JWT identifica o árbitro.
+
+POST /sentenca/sugerir
+Campo
+Tipo
+Descrição
+sugestoes
+string
+Texto com melhorias (min 20 chars)
+secoes
+string[]
+Seções a revisar (opcional)
+
+Response Sentença Publicada
+{
+  "id": "uuid", "versao": 3, "status": "publicada",
+  "conteudo": { "ementa": "...", "relatorio": "...",
+    "fundamentacao": "...", "dispositivo": "...",
+    "custas": { "requerente": 3000, "requerido": 3000 } },
+  "arbitros": [{ "nome": "...", "ratificado_at": "..." }],
+  "codigo_verificacao": "ARB-VRF-A3X9K2",
+  "pdf_url": "/api/v1/.../sentenca/pdf"
+}
+
+3.3 IA — Análise de Provas
+Response POST /ia/analisar-provas
+{
+  "suficiente": false,
+  "lacunas": [
+    { "tipo": "documento", "descricao": "Contrato original...",
+      "parte_responsavel": "requerente", "relevancia": "alta" }
+  ],
+  "confianca": 0.72
+}
+
+4. AsyncAPI — Eventos
+
+Evento
+Trigger
+Ação
+arbitragem.criada
+POST /arbitragens
+Gerar cobrança registro
+pagamento.registro.ok
+Webhook Asaas
+Gerar compromisso + convite WhatsApp (1-on-1)
+convite.aceito
+Requerido aceita (web)
+Enviar Clicksign para ambos
+compromisso.completo
+Ambos assinaram
+Cobrança taxa + designar árbitro
+pagamento.taxa.ok
+Webhook Asaas
+Abrir prazo petição (notif. WhatsApp requerente)
+peca.protocolada
+POST /pecas (contestação)
+Acionar IA análise provas
+ia.provas_insuficientes
+IA analisa
+Bot solicita provas via WhatsApp (1-on-1)
+ia.provas_suficientes
+IA analisa
+Gerar projeto sentença
+sentenca.gerada
+IA gera projeto
+Notificar árbitro no painel web
+sentenca.aprovada
+Árbitro aprova (web)
+Gerar versão final para ratificação
+sentenca.sugestao
+Árbitro sugere (web)
+IA refina + notifica árbitro (web)
+sentenca.ratificada
+Árbitro ratifica (web)
+Publicar + enviar WhatsApp (1-on-1) para cada parte
+prazo.expirado
+Cron job
+Notificar parte via WhatsApp + escalonar
+
+5. Database Schema (Prisma)
+
+5.1 Enums
+enum UserRole { REQUERENTE REQUERIDO ADVOGADO ARBITRO ADMIN }
+
+enum ArbitragemStatus {
+  AGUARDANDO_PAGAMENTO_REGISTRO AGUARDANDO_ACEITE AGUARDANDO_ASSINATURA
+  AGUARDANDO_PAGAMENTO_TAXA EM_INSTRUCAO AGUARDANDO_PETICAO
+  AGUARDANDO_CONTESTACAO ANALISE_PROVAS AGUARDANDO_PROVAS_ADICIONAIS
+  GERANDO_SENTENCA SENTENCA_EM_REVISAO SENTENCA_APROVADA
+  SENTENCA_RATIFICADA ENCERRADA RECUSADA CANCELADA
+}
+
+enum PecaTipo { PETICAO_INICIAL CONTESTACAO REPLICA TREPLICA OUTROS }
+enum ProvaTipo { DOCUMENTO IMAGEM VIDEO AUDIO TESTEMUNHO PRINT }
+enum SentencaStatus { RASCUNHO EM_REVISAO APROVADA RATIFICADA PUBLICADA }
+enum CobrancaTipo { REGISTRO TAXA_ARBITRAL HONORARIOS URGENCIA }
+enum CobrancaStatus { PENDENTE PAGO VENCIDO CANCELADO REEMBOLSADO }
+
+5.2 Models
+model User {
+  id String @id @default(uuid())
+  nome String
+  cpf_cnpj String @unique
+  email String @unique
+  telefone String @unique
+  senha_hash String
+  role UserRole
+  oab_numero String?
+  ativo Boolean @default(true)
+  created_at DateTime @default(now())
+  @@index([role, telefone])
+}
+
+model Arbitragem {
+  id String @id @default(uuid())
+  numero String @unique // ARB-YYYY-NNNNN
+  requerente_id String
+  requerido_id String?
+  adv_requerente_id String?
+  adv_requerido_id String?
+  objeto String
+  valor_causa Decimal @db.Decimal(12,2)
+  categoria CategoriaArbitragem
+  status ArbitragemStatus @default(AGUARDANDO_PAGAMENTO_REGISTRO)
+  // SEM whatsapp_group_id — não há grupo
+  created_at DateTime @default(now())
+  compromisso Compromisso?
+  pecas Peca[]
+  provas Prova[]
+  sentencas Sentenca[]
+  prazos Prazo[]
+  cobrancas Cobranca[]
+  @@index([status, created_at])
+}
+
+model Sentenca {
+  id String @id @default(uuid())
+  arbitragem_id String
+  versao Int @default(1)
+  conteudo_texto String
+  pdf_url String?
+  hash_sha256 String?
+  codigo_verif String? @unique
+  status SentencaStatus @default(RASCUNHO)
+  gerada_por String // ia | admin
+  aprovacoes SentencaAprovacao[]
+  @@unique([arbitragem_id, versao])
+}
+
+model SentencaAprovacao {
+  id String @id @default(uuid())
+  sentenca_id String
+  arbitro_id String
+  acao String // aprovar | sugerir | ratificar
+  sugestoes_texto String?
+  created_at DateTime @default(now())
+  @@unique([sentenca_id, arbitro_id, acao])
+}
+
+model WhatsAppMessage {
+  id String @id @default(uuid())
+  arbitragem_id String
+  user_id String
+  wa_message_id String? @unique // Meta Cloud API message ID
+  direcao String // inbound | outbound
+  tipo String // text | document | image | video | audio
+  conteudo String?
+  media_url String?
+  created_at DateTime @default(now())
+  @@index([arbitragem_id, created_at])
+}
+
+6. Regras de Negócio
+
+6.1 Prazos Processuais
+Prazo
+Dias
+Notificações (WhatsApp 1-on-1)
+Aceitação convite
+7 dias
+D-3, D-1, D-0 via WhatsApp
+Assinatura compromisso
+7 dias
+D-3, D-1, D-0 via WhatsApp
+Petição inicial
+10 dias
+D-5, D-2, D-0 via WhatsApp
+Contestação
+10 dias
+D-5, D-2, D-0 via WhatsApp
+Provas adicionais
+5 dias
+D-3, D-1, D-0 via WhatsApp
+Revisão sentença (árbitro)
+5 dias
+Notif. painel web (+ email)
+Ratificação (árbitro)
+3 dias
+Notif. painel web (+ email)
+Pagamento
+5 dias úteis
+D-3, D-1, D-0 via WhatsApp
+
+6.2 Regras da IA
+IA NUNCA decide — sempre gera PROJETO validado por árbitro humano (painel web)
+Aplica: Lei 9.307/96, equidade, usos e costumes
+Isolamento total entre casos (contexto separado)
+Temp: 0.3 (análise), 0.5 (sentença). Max 5 versões.
+Sentença: ementa + relatório + fundamentação + dispositivo + custas
+
+6.3 Regras de Pagamento
+Caso só avança após pagamento da etapa
+Taxa arbitral split 50/50
+Honorários liberados após sentença publicada
+Reembolso: 100% antes instrução, 50% durante, 0% após sentença
+
+6.4 Regras WhatsApp 1-on-1
+Cada parte conversa individualmente com o bot — sem grupo
+Partes não vêem mensagens uma da outra (sigilo reforçado)
+Bot identifica contexto pela arbitragem_id vinculada ao telefone
+Se parte tem múltiplos casos: bot pergunta qual caso antes de protocolar
+Mídia recebida é catalogada automaticamente por tipo (doc, img, video, audio)
+Mensagens armazenadas na tabela whatsapp_messages para audit trail
+
+7. Testes
+
+7.1 Testes Unitários
+Domínio
+Cenários
+Prior.
+State Machine
+17 transições válidas + ~50 inválidas
+CRÍTICA
+Cálculo Taxas
+Cada faixa: R$5K, R$10K, R$50K, R$200K, R$1M
+CRÍTICA
+Prazos
+Ativo, expirado, cumprido, notificações D-3/D-1/D-0
+CRÍTICA
+RBAC
+Cada role vs cada endpoint
+CRÍTICA
+WhatsApp Routing
+Msg de parte com 1 caso, com 2+ casos, sem caso
+Alta
+IA Versões
+V1, sugestão→V2, max versões (5), aprovação
+CRÍTICA
+HMAC Webhook
+Válido, inválido, replay
+Alta
+CPF/CNPJ/OAB
+Válidos e inválidos
+Alta
+
+7.2 Testes de Integração
+Cenário
+Asserts
+Fluxo completo: registro → sentença publicada
+Status correto em cada etapa, PDFs, WhatsApp msgs enviadas
+Convite recusado
+Status RECUSADA, notif WhatsApp ao requerente
+Provas insuficientes → solicitação → reavaliação
+Eventos corretos, prazo criado, msgs WhatsApp
+Árbitro sugere melhoria (web) → IA refina
+Versões incrementadas, notif no painel
+Pagamento PIX → libera etapa
+Webhook processado, status atualizado
+Multi-tenant: usuário caso A tenta acessar caso B
+403 Forbidden
+WhatsApp: parte com 2 casos envia msg
+Bot pede para escolher caso
+
+7.3 E2E
+Cenário
+Persona
+Steps
+Requerente inicia
+Requerente
+Cadastro→Form→PIX→Aguarda
+Requerido aceita
+Requerido
+WhatsApp convite→Link→Aceita→Assina
+Instrução via WhatsApp
+Partes
+Bot abre prazo→Parte envia docs no chatₒ1-on-1
+Árbitro revisa (web)
+Arbitro
+Painel→Lê→Sugere→Aprova V2→Ratifica
+Admin gerencia
+Admin
+Dashboard→Designar→Monitorar
+
+8. Pipeline CI/CD
+
+Evento
+Jobs
+Artefatos
+PR
+Lint spec + Gerar tipos + Contract tests + Unit tests
+Tipos TS, relatório
+Merge main
+Todos + Integration + SDK + Deploy staging
+SDK, docs
+Tag
+Todos + E2E + Deploy prod
+Release notes
+CRON
+Schemathesis + Dep audit + Prazos cron
+Relatório seg.
+
+9. Versionamento
+
+Tipo
+Quando
+Exemplo
+PATCH
+Typo, descrição
+Corrigir descrição campo
+MINOR
+Novo endpoint, campo opcional
+Adicionar GET /timeline
+MAJOR
+Remover campo, mudar tipo
+Alterar enum status
+
+90 dias aviso antes de remoção
+Header Sunset + Deprecation
+Migration guide
+
+10. Plano de Sprints (MVP — 20 dias)
+
+Dia
+Spec (manhã)
+Impl. (tarde)
+Entrega
+1–2
+Prisma + OpenAPI auth
+Supabase, NestJS, auth JWT
+Auth funcional
+3–4
+OpenAPI arbitragens + status
+API casos, state machine, form web
+Criar caso
+5–6
+OpenAPI compromisso, AsyncAPI assinatura
+Clicksign, PDF, webhooks
+Compromisso assinado
+7–8
+AsyncAPI WhatsApp 1-on-1, bot flows
+Meta Cloud API, convite, fluxos individuais
+Bot funcional
+9–10
+OpenAPI peças, provas, prazos
+Upload, catalogação, cron prazos
+Instrução
+11–12
+OpenAPI ia, sentenca
+OpenAI/Claude, análise, geração sentença
+IA gerando
+13–14
+UI spec painel árbitro
+Tela revisão, aprovar/sugerir/ratificar (web)
+Painel árbitro
+15–16
+OpenAPI billing
+Asaas, cobranças, webhooks pagamento
+Pagamentos
+17–18
+Specs painéis admin/parte
+Dashboards web, admin, parte
+Painéis
+19–20
+Review + testes
+Integração, piloto, deploy prod
+MVP produção
+
+
+ArbitraX — Spec-Driven Development v1.0
+A spec é o contrato. O código implementa. Os testes validam.

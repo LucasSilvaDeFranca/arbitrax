@@ -1,0 +1,388 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────
+
+enum UserRole {
+  REQUERENTE
+  REQUERIDO
+  ADVOGADO
+  ARBITRO
+  ADMIN
+}
+
+enum ArbitragemStatus {
+  AGUARDANDO_PAGAMENTO_REGISTRO
+  AGUARDANDO_ACEITE
+  RECUSADA
+  AGUARDANDO_ASSINATURA
+  AGUARDANDO_PAGAMENTO_TAXA
+  EM_INSTRUCAO
+  AGUARDANDO_PETICAO
+  AGUARDANDO_CONTESTACAO
+  ANALISE_PROVAS
+  AGUARDANDO_PROVAS_ADICIONAIS
+  GERANDO_SENTENCA
+  SENTENCA_EM_REVISAO
+  SENTENCA_APROVADA
+  SENTENCA_RATIFICADA
+  ENCERRADA
+  CANCELADA
+}
+
+enum CategoriaArbitragem {
+  COMERCIAL
+  CONSUMIDOR
+  EMPRESARIAL
+  TRABALHISTA
+  IMOBILIARIO
+  OUTROS
+}
+
+enum PecaTipo {
+  PETICAO_INICIAL
+  CONTESTACAO
+  REPLICA
+  TREPLICA
+  ALEGACOES_FINAIS
+  OUTROS
+}
+
+enum ProvaTipo {
+  DOCUMENTO
+  IMAGEM
+  VIDEO
+  AUDIO
+  TESTEMUNHO
+  PRINT
+}
+
+enum SentencaStatus {
+  RASCUNHO
+  EM_REVISAO
+  APROVADA
+  RATIFICADA
+  PUBLICADA
+}
+
+enum CobrancaTipo {
+  REGISTRO
+  TAXA_ARBITRAL
+  HONORARIOS
+  URGENCIA
+}
+
+enum CobrancaStatus {
+  PENDENTE
+  PAGO
+  VENCIDO
+  CANCELADO
+  REEMBOLSADO
+}
+
+enum PrazoTipo {
+  ACEITE
+  ASSINATURA
+  PETICAO
+  CONTESTACAO
+  PROVAS_ADICIONAIS
+  REVISAO_SENTENCA
+  RATIFICACAO
+  CUSTOM
+}
+
+enum PrazoStatus {
+  ATIVO
+  CUMPRIDO
+  EXPIRADO
+  CANCELADO
+}
+
+// ─── Models ─────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  nome      String
+  cpfCnpj   String   @unique @map("cpf_cnpj")
+  email     String   @unique
+  telefone  String   @unique
+  senhaHash String   @map("senha_hash")
+  role      UserRole
+  oabNumero String?  @map("oab_numero")
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  arbitragensRequerente  Arbitragem[]        @relation("Requerente")
+  arbitragensRequerido   Arbitragem[]        @relation("Requerido")
+  arbitragensAdvReq      Arbitragem[]        @relation("AdvRequerente")
+  arbitragensAdvReqdo    Arbitragem[]        @relation("AdvRequerido")
+  arbitragemArbitros     ArbitragemArbitro[]
+  pecas                  Peca[]
+  provas                 Prova[]
+  sentencaAprovacoes     SentencaAprovacao[]
+  prazos                 Prazo[]
+  cobrancas              Cobranca[]
+  whatsappMessages       WhatsAppMessage[]
+  notificacoes           Notificacao[]
+  auditLogs              AuditLog[]
+
+  @@index([role, telefone])
+  @@map("users")
+}
+
+model Arbitragem {
+  id               String             @id @default(uuid())
+  numero           String             @unique
+  requerenteId     String             @map("requerente_id")
+  requeridoId      String?            @map("requerido_id")
+  advRequerenteId  String?            @map("adv_requerente_id")
+  advRequeridoId   String?            @map("adv_requerido_id")
+  objeto           String
+  valorCausa       Decimal            @db.Decimal(12, 2) @map("valor_causa")
+  categoria        CategoriaArbitragem
+  urgencia         Boolean            @default(false)
+  status           ArbitragemStatus   @default(AGUARDANDO_PAGAMENTO_REGISTRO)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  requerente       User               @relation("Requerente", fields: [requerenteId], references: [id])
+  requerido        User?              @relation("Requerido", fields: [requeridoId], references: [id])
+  advRequerente    User?              @relation("AdvRequerente", fields: [advRequerenteId], references: [id])
+  advRequerido     User?              @relation("AdvRequerido", fields: [advRequeridoId], references: [id])
+  arbitros         ArbitragemArbitro[]
+  compromisso      Compromisso?
+  pecas            Peca[]
+  provas           Prova[]
+  sentencas        Sentenca[]
+  prazos           Prazo[]
+  cobrancas        Cobranca[]
+  whatsappMessages WhatsAppMessage[]
+
+  @@index([status, createdAt])
+  @@map("arbitragens")
+}
+
+model ArbitragemArbitro {
+  id            String   @id @default(uuid())
+  arbitragemId  String   @map("arbitragem_id")
+  arbitroId     String   @map("arbitro_id")
+  status        String   @default("designado")
+  designadoAt   DateTime @default(now()) @map("designado_at")
+
+  arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
+  arbitro       User       @relation(fields: [arbitroId], references: [id])
+
+  @@unique([arbitragemId, arbitroId])
+  @@map("arbitragem_arbitros")
+}
+
+model Compromisso {
+  id            String   @id @default(uuid())
+  arbitragemId  String   @unique @map("arbitragem_id")
+  pdfUrl        String?  @map("pdf_url")
+  hashSha256    String?  @map("hash_sha256")
+  clicksignKey  String?  @map("clicksign_key")
+  assinReqAt    DateTime? @map("assin_req_at")
+  assinReqdoAt  DateTime? @map("assin_reqdo_at")
+  status        String   @default("pendente")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
+
+  @@map("compromissos")
+}
+
+model Peca {
+  id            String   @id @default(uuid())
+  arbitragemId  String   @map("arbitragem_id")
+  autorId       String   @map("autor_id")
+  tipo          PecaTipo
+  conteudo      String?
+  anexos        String[] @default([])
+  protocoladaAt DateTime @default(now()) @map("protocolada_at")
+
+  arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
+  autor         User       @relation(fields: [autorId], references: [id])
+
+  @@index([arbitragemId, tipo])
+  @@map("pecas")
+}
+
+model Prova {
+  id            String    @id @default(uuid())
+  arbitragemId  String    @map("arbitragem_id")
+  parteId       String    @map("parte_id")
+  tipo          ProvaTipo
+  descricao     String?
+  arquivoUrl    String    @map("arquivo_url")
+  hashSha256    String    @map("hash_sha256")
+  mimeType      String?   @map("mime_type")
+  tamanho       Int?
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
+  parte         User       @relation(fields: [parteId], references: [id])
+
+  @@index([arbitragemId, tipo])
+  @@map("provas")
+}
+
+model Sentenca {
+  id             String          @id @default(uuid())
+  arbitragemId   String          @map("arbitragem_id")
+  versao         Int             @default(1)
+  conteudoTexto  String          @map("conteudo_texto")
+  pdfUrl         String?         @map("pdf_url")
+  hashSha256     String?         @map("hash_sha256")
+  codigoVerif    String?         @unique @map("codigo_verif")
+  status         SentencaStatus  @default(RASCUNHO)
+  geradaPor      String          @map("gerada_por")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  arbitragem     Arbitragem          @relation(fields: [arbitragemId], references: [id])
+  aprovacoes     SentencaAprovacao[]
+
+  @@unique([arbitragemId, versao])
+  @@map("sentencas")
+}
+
+model SentencaAprovacao {
+  id             String   @id @default(uuid())
+  sentencaId     String   @map("sentenca_id")
+  arbitroId      String   @map("arbitro_id")
+  acao           String   // aprovar | sugerir | ratificar
+  sugestoesTexto String?  @map("sugestoes_texto")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  sentenca       Sentenca @relation(fields: [sentencaId], references: [id])
+  arbitro        User     @relation(fields: [arbitroId], references: [id])
+
+  @@unique([sentencaId, arbitroId, acao])
+  @@map("sentenca_aprovacoes")
+}
+
+model Prazo {
+  id            String      @id @default(uuid())
+  arbitragemId  String      @map("arbitragem_id")
+  tipo          PrazoTipo
+  parteId       String?     @map("parte_id")
+  inicio        DateTime    @default(now())
+  fim           DateTime
+  status        PrazoStatus @default(ATIVO)
+  notificado3d  Boolean     @default(false) @map("notificado_3d")
+  notificado1d  Boolean     @default(false) @map("notificado_1d")
+  notificadoExp Boolean     @default(false) @map("notificado_exp")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
+  parte         User?      @relation(fields: [parteId], references: [id])
+
+  @@index([status, fim])
+  @@map("prazos")
+}
+
+model Cobranca {
+  id            String        @id @default(uuid())
+  arbitragemId  String        @map("arbitragem_id")
+  pagadorId     String        @map("pagador_id")
+  tipo          CobrancaTipo
+  valor         Decimal       @db.Decimal(12, 2)
+  status        CobrancaStatus @default(PENDENTE)
+  gatewayId     String?       @map("gateway_id")
+  pixQrcode     String?       @map("pix_qrcode")
+  boletoUrl     String?       @map("boleto_url")
+  vencimento    DateTime
+  pagoAt        DateTime?     @map("pago_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
+  pagador       User       @relation(fields: [pagadorId], references: [id])
+
+  @@index([arbitragemId, status])
+  @@map("cobrancas")
+}
+
+model WhatsAppMessage {
+  id            String   @id @default(uuid())
+  arbitragemId  String   @map("arbitragem_id")
+  userId        String   @map("user_id")
+  waMessageId   String?  @unique @map("wa_message_id")
+  direcao       String   // inbound | outbound
+  tipo          String   // text | document | image | video | audio
+  conteudo      String?
+  mediaUrl      String?  @map("media_url")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
+  user          User       @relation(fields: [userId], references: [id])
+
+  @@index([arbitragemId, createdAt])
+  @@map("whatsapp_messages")
+}
+
+model Notificacao {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  titulo    String
+  mensagem  String
+  tipo      String   // prazo | sentenca | pagamento | sistema
+  lida      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User @relation(fields: [userId], references: [id])
+
+  @@index([userId, lida])
+  @@map("notificacoes")
+}
+
+model Template {
+  id        String   @id @default(uuid())
+  tipo      String   // compromisso | sentenca
+  nome      String
+  conteudo  String
+  variaveis String[] @default([])
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("templates")
+}
+
+model IaPrompt {
+  id              String  @id @default(uuid())
+  tipo            String  // analise_provas | gerar_sentenca | refinar_sentenca | resumo
+  modelo          String  @default("gpt-4o")
+  promptSistema   String  @map("prompt_sistema")
+  promptTemplate  String  @map("prompt_template")
+  temperatura     Float   @default(0.3)
+  ativo           Boolean @default(true)
+
+  @@map("ia_prompts")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  acao        String
+  entidade    String
+  entidadeId  String?  @map("entidade_id")
+  dadosAntes  Json?    @map("dados_antes")
+  dadosDepois Json?    @map("dados_depois")
+  ip          String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User? @relation(fields: [userId], references: [id])
+
+  @@index([entidade, entidadeId])
+  @@map("audit_logs")
+}
