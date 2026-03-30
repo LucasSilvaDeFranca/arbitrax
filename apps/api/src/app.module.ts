@@ -12,6 +12,7 @@ import { SentencaModule } from './sentenca/sentenca.module';
 import { AdminModule } from './admin/admin.module';
 import { ChatModule } from './chat/chat.module';
 import { PlanosModule } from './planos/planos.module';
+import { CompromissoModule } from './compromisso/compromisso.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -29,6 +30,7 @@ import { HealthController } from './health.controller';
     AdminModule,
     ChatModule,
     PlanosModule,
+    CompromissoModule,
   ],
   controllers: [HealthController],
 })
