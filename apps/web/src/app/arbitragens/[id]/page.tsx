@@ -126,7 +126,7 @@ export default function ArbitragemDetailPage() {
         </div>
 
         {/* Links rapidos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Link
             href={`/arbitragens/${id}/documentos`}
             className="bg-white rounded-xl shadow p-5 hover:bg-gray-50 transition flex justify-between items-center"
@@ -148,6 +148,16 @@ export default function ArbitragemDetailPage() {
               <p className="text-sm text-gray-500">
                 {arb.sentencas?.length ? `v${arb.sentencas[0].versao} - ${arb.sentencas[0].status}` : 'Nenhuma'}
               </p>
+            </div>
+            <span className="text-primary-600">&rarr;</span>
+          </Link>
+          <Link
+            href={`/arbitragens/${id}/chat`}
+            className="bg-white rounded-xl shadow p-5 hover:bg-gray-50 transition flex justify-between items-center"
+          >
+            <div>
+              <h3 className="font-medium text-gray-800">Chat</h3>
+              <p className="text-sm text-gray-500">Comunicacao do caso</p>
             </div>
             <span className="text-primary-600">&rarr;</span>
           </Link>

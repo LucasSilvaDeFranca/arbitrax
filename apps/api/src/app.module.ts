@@ -10,6 +10,8 @@ import { PrazosModule } from './prazos/prazos.module';
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
 import { SentencaModule } from './sentenca/sentenca.module';
 import { AdminModule } from './admin/admin.module';
+import { ChatModule } from './chat/chat.module';
+import { PlanosModule } from './planos/planos.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -25,6 +27,8 @@ import { HealthController } from './health.controller';
     NotificacoesModule,
     SentencaModule,
     AdminModule,
+    ChatModule,
+    PlanosModule,
   ],
   controllers: [HealthController],
 })
