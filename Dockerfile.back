@@ -21,11 +21,17 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Copy only what's needed
 COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=base /app/apps/api/dist ./apps/api/dist
 COPY --from=base /app/apps/api/prisma ./apps/api/prisma
+COPY --from=base /app/apps/api/package.json ./apps/api/package.json
 COPY --from=base /app/packages ./packages
+COPY --from=base /app/package.json ./package.json
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1
 
 EXPOSE 3001
 ENV PORT=3001
