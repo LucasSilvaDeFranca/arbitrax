@@ -1,0 +1,309 @@
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { IaService } from '../ia/ia.service';
+import * as crypto from 'crypto';
+
+const MAX_VERSOES = 5;
+
+@Injectable()
+export class SentencaService {
+  constructor(
+    private prisma: PrismaService,
+    private iaService: IaService,
+  ) {}
+
+  /** Acionar IA para gerar projeto de sentenca */
+  async gerar(arbitragemId: string) {
+    const arb = await this.getArbitragem(arbitragemId);
+
+    const pecas = await this.prisma.peca.findMany({
+      where: { arbitragemId },
+    });
+    const provas = await this.prisma.prova.findMany({
+      where: { arbitragemId },
+    });
+
+    // Verificar versao atual
+    const ultimaSentenca = await this.prisma.sentenca.findFirst({
+      where: { arbitragemId },
+      orderBy: { versao: 'desc' },
+    });
+
+    const novaVersao = (ultimaSentenca?.versao || 0) + 1;
+    if (novaVersao > MAX_VERSOES) {
+      throw new BadRequestException(`Maximo de ${MAX_VERSOES} versoes atingido`);
+    }
+
+    const resultado = await this.iaService.gerarSentenca(
+      {
+        numero: arb.numero,
+        objeto: arb.objeto,
+        valorCausa: Number(arb.valorCausa),
+        categoria: arb.categoria,
+      },
+      pecas.map((p) => ({ tipo: p.tipo, conteudo: p.conteudo || undefined })),
+      provas.map((p) => ({ tipo: p.tipo, descricao: p.descricao || undefined })),
+    );
+
+    const conteudoTexto = JSON.stringify(resultado);
+    const hash = crypto.createHash('sha256').update(conteudoTexto).digest('hex');
+
+    const sentenca = await this.prisma.sentenca.create({
+      data: {
+        arbitragemId,
+        versao: novaVersao,
+        conteudoTexto,
+        hashSha256: hash,
+        status: 'RASCUNHO',
+        geradaPor: 'ia',
+      },
+    });
+
+    // Atualizar status da arbitragem
+    await this.prisma.arbitragem.update({
+      where: { id: arbitragemId },
+      data: { status: 'SENTENCA_EM_REVISAO' },
+    });
+
+    return { ...sentenca, conteudo: resultado };
+  }
+
+  /** Consultar sentenca atual */
+  async getCurrent(arbitragemId: string, userId: string, userRole: string) {
+    await this.checkAccess(arbitragemId, userId, userRole);
+
+    const sentenca = await this.prisma.sentenca.findFirst({
+      where: { arbitragemId },
+      orderBy: { versao: 'desc' },
+      include: {
+        aprovacoes: {
+          include: { arbitro: { select: { id: true, nome: true } } },
+        },
+      },
+    });
+
+    if (!sentenca) throw new NotFoundException('Nenhuma sentenca encontrada');
+
+    return {
+      ...sentenca,
+      conteudo: JSON.parse(sentenca.conteudoTexto),
+    };
+  }
+
+  /** Listar versoes */
+  async getVersoes(arbitragemId: string, userId: string, userRole: string) {
+    await this.checkAccess(arbitragemId, userId, userRole);
+
+    const sentencas = await this.prisma.sentenca.findMany({
+      where: { arbitragemId },
+      orderBy: { versao: 'desc' },
+      select: {
+        id: true,
+        versao: true,
+        status: true,
+        geradaPor: true,
+        createdAt: true,
+        aprovacoes: {
+          select: { acao: true, arbitro: { select: { nome: true } }, createdAt: true },
+        },
+      },
+    });
+
+    return sentencas;
+  }
+
+  /** Arbitro aprova projeto (via painel web) */
+  async aprovar(arbitragemId: string, userId: string) {
+    const sentenca = await this.getUltimaSentenca(arbitragemId);
+
+    if (sentenca.status !== 'RASCUNHO' && sentenca.status !== 'EM_REVISAO') {
+      throw new BadRequestException('Sentenca nao esta em estado de revisao');
+    }
+
+    await this.prisma.sentencaAprovacao.create({
+      data: {
+        sentencaId: sentenca.id,
+        arbitroId: userId,
+        acao: 'aprovar',
+      },
+    });
+
+    await this.prisma.sentenca.update({
+      where: { id: sentenca.id },
+      data: { status: 'APROVADA' },
+    });
+
+    await this.prisma.arbitragem.update({
+      where: { id: arbitragemId },
+      data: { status: 'SENTENCA_APROVADA' },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        acao: 'SENTENCA_APROVADA',
+        entidade: 'sentenca',
+        entidadeId: sentenca.id,
+      },
+    });
+
+    return { message: 'Sentenca aprovada', versao: sentenca.versao };
+  }
+
+  /** Arbitro envia sugestoes (via painel web) → IA refina */
+  async sugerir(arbitragemId: string, userId: string, sugestoes: string) {
+    const sentenca = await this.getUltimaSentenca(arbitragemId);
+
+    if (sentenca.status !== 'RASCUNHO' && sentenca.status !== 'EM_REVISAO') {
+      throw new BadRequestException('Sentenca nao esta em estado de revisao');
+    }
+
+    const novaVersao = sentenca.versao + 1;
+    if (novaVersao > MAX_VERSOES) {
+      throw new BadRequestException(`Maximo de ${MAX_VERSOES} versoes atingido`);
+    }
+
+    // Registrar sugestao
+    await this.prisma.sentencaAprovacao.create({
+      data: {
+        sentencaId: sentenca.id,
+        arbitroId: userId,
+        acao: 'sugerir',
+        sugestoesTexto: sugestoes,
+      },
+    });
+
+    // IA refina com base nas sugestoes
+    const sentencaAtual = JSON.parse(sentenca.conteudoTexto);
+    const refinada = await this.iaService.refinarSentenca(sentencaAtual, sugestoes);
+
+    const conteudoTexto = JSON.stringify(refinada);
+    const hash = crypto.createHash('sha256').update(conteudoTexto).digest('hex');
+
+    const novaSentenca = await this.prisma.sentenca.create({
+      data: {
+        arbitragemId,
+        versao: novaVersao,
+        conteudoTexto,
+        hashSha256: hash,
+        status: 'EM_REVISAO',
+        geradaPor: 'ia',
+      },
+    });
+
+    // Notificar arbitro
+    const arbitros = await this.prisma.arbitragemArbitro.findMany({
+      where: { arbitragemId },
+    });
+    for (const arb of arbitros) {
+      await this.prisma.notificacao.create({
+        data: {
+          userId: arb.arbitroId,
+          titulo: 'Nova versao de sentenca',
+          mensagem: `Versao ${novaVersao} gerada com base nas suas sugestoes.`,
+          tipo: 'sentenca',
+          link: `/arbitragens/${arbitragemId}`,
+        },
+      });
+    }
+
+    return { ...novaSentenca, conteudo: refinada };
+  }
+
+  /** Arbitro ratifica versao final */
+  async ratificar(arbitragemId: string, userId: string) {
+    const sentenca = await this.getUltimaSentenca(arbitragemId);
+
+    if (sentenca.status !== 'APROVADA') {
+      throw new BadRequestException('Sentenca precisa estar APROVADA para ratificar');
+    }
+
+    const codigoVerif = `ARB-VRF-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+
+    await this.prisma.sentencaAprovacao.create({
+      data: {
+        sentencaId: sentenca.id,
+        arbitroId: userId,
+        acao: 'ratificar',
+      },
+    });
+
+    await this.prisma.sentenca.update({
+      where: { id: sentenca.id },
+      data: {
+        status: 'RATIFICADA',
+        codigoVerif,
+      },
+    });
+
+    await this.prisma.arbitragem.update({
+      where: { id: arbitragemId },
+      data: { status: 'SENTENCA_RATIFICADA' },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        acao: 'SENTENCA_RATIFICADA',
+        entidade: 'sentenca',
+        entidadeId: sentenca.id,
+        dadosDepois: { codigoVerif },
+      },
+    });
+
+    return { message: 'Sentenca ratificada', codigoVerif, versao: sentenca.versao };
+  }
+
+  /** Analisar provas via IA */
+  async analisarProvas(arbitragemId: string) {
+    const arb = await this.getArbitragem(arbitragemId);
+    const pecas = await this.prisma.peca.findMany({ where: { arbitragemId } });
+    const provas = await this.prisma.prova.findMany({ where: { arbitragemId } });
+
+    return this.iaService.analisarProvas(
+      {
+        numero: arb.numero,
+        objeto: arb.objeto,
+        valorCausa: Number(arb.valorCausa),
+        categoria: arb.categoria,
+      },
+      pecas.map((p) => ({ tipo: p.tipo, conteudo: p.conteudo || undefined })),
+      provas.map((p) => ({ tipo: p.tipo, descricao: p.descricao || undefined, mimeType: p.mimeType || undefined })),
+    );
+  }
+
+  // ── Helpers ──
+
+  private async getArbitragem(id: string) {
+    const arb = await this.prisma.arbitragem.findUnique({ where: { id } });
+    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
+    return arb;
+  }
+
+  private async getUltimaSentenca(arbitragemId: string) {
+    const s = await this.prisma.sentenca.findFirst({
+      where: { arbitragemId },
+      orderBy: { versao: 'desc' },
+    });
+    if (!s) throw new NotFoundException('Nenhuma sentenca encontrada');
+    return s;
+  }
+
+  private async checkAccess(arbitragemId: string, userId: string, userRole: string) {
+    if (userRole === 'ADMIN') return;
+    const arb = await this.getArbitragem(arbitragemId);
+    if (userRole === 'ARBITRO') {
+      const isArbitro = await this.prisma.arbitragemArbitro.findFirst({
+        where: { arbitragemId, arbitroId: userId },
+      });
+      if (isArbitro) return;
+    }
+    if (arb.requerenteId === userId || arb.requeridoId === userId) return;
+    throw new ForbiddenException('Sem acesso');
+  }
+}

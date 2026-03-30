@@ -125,12 +125,12 @@ export default function ArbitragemDetailPage() {
           <p className="text-gray-800">{arb.objeto}</p>
         </div>
 
-        {/* Link Documentos */}
-        <Link
-          href={`/arbitragens/${id}/documentos`}
-          className="block bg-white rounded-xl shadow p-6 mb-6 hover:bg-gray-50 transition"
-        >
-          <div className="flex justify-between items-center">
+        {/* Links rapidos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <Link
+            href={`/arbitragens/${id}/documentos`}
+            className="bg-white rounded-xl shadow p-5 hover:bg-gray-50 transition flex justify-between items-center"
+          >
             <div>
               <h3 className="font-medium text-gray-800">Documentos</h3>
               <p className="text-sm text-gray-500">
@@ -138,8 +138,20 @@ export default function ArbitragemDetailPage() {
               </p>
             </div>
             <span className="text-primary-600">&rarr;</span>
-          </div>
-        </Link>
+          </Link>
+          <Link
+            href={`/arbitragens/${id}/sentenca`}
+            className="bg-white rounded-xl shadow p-5 hover:bg-gray-50 transition flex justify-between items-center"
+          >
+            <div>
+              <h3 className="font-medium text-gray-800">Sentenca</h3>
+              <p className="text-sm text-gray-500">
+                {arb.sentencas?.length ? `v${arb.sentencas[0].versao} - ${arb.sentencas[0].status}` : 'Nenhuma'}
+              </p>
+            </div>
+            <span className="text-primary-600">&rarr;</span>
+          </Link>
+        </div>
 
         {/* Transicoes de estado */}
         {arb.allowedTransitions?.length > 0 && (

@@ -8,6 +8,7 @@ import { PecasModule } from './pecas/pecas.module';
 import { ProvasModule } from './provas/provas.module';
 import { PrazosModule } from './prazos/prazos.module';
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
+import { SentencaModule } from './sentenca/sentenca.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -21,6 +22,7 @@ import { HealthController } from './health.controller';
     ProvasModule,
     PrazosModule,
     NotificacoesModule,
+    SentencaModule,
   ],
   controllers: [HealthController],
 })
