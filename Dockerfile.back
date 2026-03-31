@@ -1,8 +1,8 @@
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 WORKDIR /app
 
-# OpenSSL 1.1 necessario para Prisma engine no Alpine
-RUN apk add --no-cache openssl1.1-compat
+# OpenSSL necessario para Prisma engine
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY package.json package-lock.json ./
@@ -20,12 +20,12 @@ RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 RUN npm run build --workspace=apps/api
 
 # Production
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# OpenSSL 1.1 necessario para Prisma engine no Alpine
-RUN apk add --no-cache openssl1.1-compat
+# OpenSSL necessario para Prisma engine
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Copy only what's needed
 COPY --from=base /app/node_modules ./node_modules
