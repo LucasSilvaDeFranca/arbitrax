@@ -50,12 +50,16 @@ export class PlanosService implements OnModuleInit {
 
   async onModuleInit() {
     // Seed planos se nao existirem
-    for (const plano of PLANOS_DEFAULT) {
-      await this.prisma.plano.upsert({
-        where: { nome: plano.nome },
-        update: {},
-        create: plano,
-      });
+    try {
+      for (const plano of PLANOS_DEFAULT) {
+        await this.prisma.plano.upsert({
+          where: { nome: plano.nome },
+          update: {},
+          create: plano,
+        });
+      }
+    } catch {
+      // Banco indisponivel no startup - seed sera feito na proxima inicializacao
     }
   }
 
