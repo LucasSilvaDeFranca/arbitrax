@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getToken } from '@/lib/auth';
 import { arbitragensApi } from '@/lib/arbitragens';
+import AuthLayout from '@/components/AuthLayout';
 
 const STATUS_COLORS: Record<string, string> = {
   AGUARDANDO_PAGAMENTO_REGISTRO: 'bg-yellow-100 text-yellow-800',
@@ -58,13 +59,14 @@ export default function ArbitragemDetailPage() {
   };
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center"><p className="text-gray-500">Carregando...</p></main>;
+    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>;
   }
 
   if (!arb) return null;
 
   return (
-    <main className="min-h-screen p-8">
+    <AuthLayout>
+      <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <Link href="/arbitragens" className="text-primary-600 hover:underline text-sm mb-4 block">
           &larr; Voltar para lista
@@ -228,6 +230,7 @@ export default function ArbitragemDetailPage() {
           </div>
         )}
       </div>
-    </main>
+      </div>
+    </AuthLayout>
   );
 }

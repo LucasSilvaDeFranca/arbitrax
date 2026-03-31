@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { adminApi, AdminStats, ArbitroInfo } from '@/lib/admin';
+import AuthLayout from '@/components/AuthLayout';
 
 function formatStatus(s: string) {
   return s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
@@ -45,15 +46,15 @@ export default function AdminPage() {
   };
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center"><p className="text-gray-500">Carregando...</p></main>;
+    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>;
   }
 
   return (
-    <main className="min-h-screen p-8">
+    <AuthLayout>
+      <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="mb-8">
           <h1 className="text-3xl font-bold text-primary-700">Painel Admin</h1>
-          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">&larr; Dashboard</Link>
         </div>
 
         {/* Tabs */}
@@ -196,6 +197,7 @@ export default function AdminPage() {
           </div>
         )}
       </div>
-    </main>
+      </div>
+    </AuthLayout>
   );
 }

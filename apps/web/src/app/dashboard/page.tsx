@@ -7,6 +7,7 @@ import { authApi } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { arbitragensApi, Arbitragem } from '@/lib/arbitragens';
 import { notificacoesApi } from '@/lib/notificacoes';
+import AuthLayout from '@/components/AuthLayout';
 
 interface User {
   id: string;
@@ -49,48 +50,22 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    router.push('/login');
-  };
-
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500">Carregando...</p>
-      </main>
+      <AuthLayout>
+        <div className="flex items-center justify-center h-screen">
+          <p className="text-gray-400">Carregando...</p>
+        </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-primary-700">Dashboard</h1>
-            <p className="text-gray-500">Bem-vindo, {user?.nome}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            {user?.role === 'ADMIN' && (
-              <Link href="/admin" className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium hover:bg-indigo-200 transition">
-                Painel Admin
-              </Link>
-            )}
-            {(user?.role === 'ARBITRO' || user?.role === 'ADVOGADO') && (
-              <Link href="/certificado-digital" className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-200 transition">
-                Certificado Digital
-              </Link>
-            )}
-            <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
-              {user?.role}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-red-600 transition"
-            >
-              Sair
-            </button>
-          </div>
+    <AuthLayout>
+      <div className="p-8 max-w-6xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-primary-700">Dashboard</h1>
+          <p className="text-gray-500">Bem-vindo, {user?.nome}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -158,6 +133,6 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-    </main>
+    </AuthLayout>
   );
 }

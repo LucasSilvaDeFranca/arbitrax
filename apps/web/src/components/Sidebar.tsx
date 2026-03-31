@@ -1,0 +1,171 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { getUser, getToken, logout } from '@/lib/auth';
+
+const ROLE_LABELS: Record<string, string> = {
+  REQUERENTE: 'Requerente',
+  REQUERIDO: 'Requerido',
+  ADVOGADO: 'Advogado',
+  ARBITRO: 'Arbitro',
+  ADMIN: 'Administrador',
+};
+
+const ROLE_COLORS: Record<string, string> = {
+  REQUERENTE: 'bg-blue-100 text-blue-700',
+  REQUERIDO: 'bg-orange-100 text-orange-700',
+  ADVOGADO: 'bg-purple-100 text-purple-700',
+  ARBITRO: 'bg-emerald-100 text-emerald-700',
+  ADMIN: 'bg-red-100 text-red-700',
+};
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  roles?: string[];
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { href: '/arbitragens', label: 'Arbitragens', icon: '⚖' },
+  { href: '/arbitragens/nova', label: 'Nova Arbitragem', icon: '➕', roles: ['REQUERENTE', 'ADVOGADO', 'ADMIN'] },
+  { href: '/notificacoes', label: 'Notificacoes', icon: '🔔' },
+  { href: '/certificado-digital', label: 'Certificado Digital', icon: '🔐', roles: ['ARBITRO', 'ADVOGADO'] },
+  { href: '/admin', label: 'Painel Admin', icon: '🛡', roles: ['ADMIN'] },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    setUser(getUser());
+  }, []);
+
+  if (!user) return null;
+
+  const filteredNav = NAV_ITEMS.filter(
+    (item) => !item.roles || item.roles.includes(user.role),
+  );
+
+  const initials = user.nome
+    ?.split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase() || '??';
+
+  return (
+    <>
+      {/* Mobile toggle */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="fixed top-4 left-4 z-50 lg:hidden bg-white shadow-lg rounded-lg p-2"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {isOpen ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          )}
+        </svg>
+      </button>
+
+      {/* Overlay mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 transform transition-transform duration-200 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Logo */}
+          <div className="p-6 border-b border-gray-100">
+            <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+              <span className="text-2xl font-bold text-primary-700">ArbitraX</span>
+            </Link>
+            <p className="text-xs text-gray-400 mt-1">A justica do futuro, hoje!</p>
+          </div>
+
+          {/* User info */}
+          <div className="p-4 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold text-sm">
+                {initials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm text-gray-800 truncate">{user.nome}</p>
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              </div>
+            </div>
+            <div className="mt-2">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[user.role] || 'bg-gray-100'}`}>
+                {ROLE_LABELS[user.role] || user.role}
+              </span>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto p-3">
+            <ul className="space-y-1">
+              {filteredNav.map((item) => {
+                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+                        isActive
+                          ? 'bg-primary-50 text-primary-700 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    >
+                      <span className="text-lg">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          {/* Bottom actions */}
+          <div className="p-3 border-t border-gray-100">
+            <Link
+              href="/settings"
+              onClick={() => setIsOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+                pathname === '/settings'
+                  ? 'bg-primary-50 text-primary-700 font-medium'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <span className="text-lg">⚙</span>
+              Configuracoes
+            </Link>
+            <button
+              onClick={() => { logout(); setIsOpen(false); }}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-500 hover:bg-red-50 transition w-full"
+            >
+              <span className="text-lg">🚪</span>
+              Sair da conta
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}

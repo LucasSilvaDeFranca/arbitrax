@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { certificadoApi, CertificadoStatus } from '@/lib/certificado-digital';
+import AuthLayout from '@/components/AuthLayout';
 
 export default function CertificadoDigitalPage() {
   const router = useRouter();
@@ -98,15 +99,14 @@ export default function CertificadoDigitalPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500">Carregando...</p>
-      </main>
+      <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>
     );
   }
 
   if (!temPermissao) {
     return (
-      <main className="min-h-screen p-8">
+      <AuthLayout>
+        <div className="p-8">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Acesso Restrito</h1>
           <p className="text-gray-500">Apenas Arbitros, Advogados e Administradores podem gerenciar certificados digitais.</p>
@@ -114,12 +114,14 @@ export default function CertificadoDigitalPage() {
             Voltar ao Dashboard
           </Link>
         </div>
-      </main>
+        </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <main className="min-h-screen p-8">
+    <AuthLayout>
+      <div className="p-8">
       <div className="max-w-2xl mx-auto">
         <Link href="/dashboard" className="text-primary-600 hover:underline text-sm mb-4 block">
           &larr; Voltar ao Dashboard
@@ -287,6 +289,7 @@ export default function CertificadoDigitalPage() {
           </div>
         </div>
       </div>
-    </main>
+      </div>
+    </AuthLayout>
   );
 }

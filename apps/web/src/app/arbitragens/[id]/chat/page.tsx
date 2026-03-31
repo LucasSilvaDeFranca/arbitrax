@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { chatApi, ChatMessage } from '@/lib/chat';
+import AuthLayout from '@/components/AuthLayout';
 
 export default function ChatPage() {
   const router = useRouter();
@@ -65,11 +66,12 @@ export default function ChatPage() {
   };
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center"><p className="text-gray-500">Carregando...</p></main>;
+    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>;
   }
 
   return (
-    <main className="flex flex-col h-screen">
+    <AuthLayout>
+    <div className="flex flex-col h-[calc(100vh-0px)]">
       {/* Header */}
       <div className="bg-white border-b px-6 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -140,6 +142,7 @@ export default function ChatPage() {
           </button>
         </div>
       </div>
-    </main>
+    </div>
+    </AuthLayout>
   );
 }

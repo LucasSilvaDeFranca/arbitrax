@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getToken } from '@/lib/auth';
 import { notificacoesApi, Notificacao } from '@/lib/notificacoes';
+import AuthLayout from '@/components/AuthLayout';
 
 const TIPO_ICON: Record<string, string> = {
   prazo: '⏰',
@@ -49,11 +50,12 @@ export default function NotificacoesPage() {
   };
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center"><p className="text-gray-500">Carregando...</p></main>;
+    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>;
   }
 
   return (
-    <main className="min-h-screen p-8">
+    <AuthLayout>
+      <div className="p-8">
       <div className="max-w-3xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -117,6 +119,7 @@ export default function NotificacoesPage() {
           </div>
         )}
       </div>
-    </main>
+      </div>
+    </AuthLayout>
   );
 }

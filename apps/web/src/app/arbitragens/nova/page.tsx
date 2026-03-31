@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getToken } from '@/lib/auth';
 import { arbitragensApi } from '@/lib/arbitragens';
+import AuthLayout from '@/components/AuthLayout';
 
 const CATEGORIAS = [
   { value: 'COMERCIAL', label: 'Comercial' },
@@ -64,7 +65,8 @@ export default function NovaArbitragemPage() {
   };
 
   return (
-    <main className="min-h-screen p-8">
+    <AuthLayout>
+      <div className="p-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-primary-700 mb-2">Nova Arbitragem</h1>
 
@@ -269,6 +271,7 @@ export default function NovaArbitragemPage() {
           </div>
         </div>
       </div>
-    </main>
+      </div>
+    </AuthLayout>
   );
 }

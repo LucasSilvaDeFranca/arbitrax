@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { sentencaApi, Sentenca, VersaoResumo } from '@/lib/sentenca';
 import { certificadoApi, CertificadoStatus } from '@/lib/certificado-digital';
+import AuthLayout from '@/components/AuthLayout';
 
 function formatStatus(s: string) {
   return s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
@@ -106,11 +107,12 @@ export default function SentencaPage() {
   };
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center"><p className="text-gray-500">Carregando...</p></main>;
+    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>;
   }
 
   return (
-    <main className="min-h-screen p-8">
+    <AuthLayout>
+      <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <Link href={`/arbitragens/${id}`} className="text-primary-600 hover:underline text-sm mb-4 block">
           &larr; Voltar para o caso
@@ -364,6 +366,7 @@ export default function SentencaPage() {
           </>
         )}
       </div>
-    </main>
+      </div>
+    </AuthLayout>
   );
 }

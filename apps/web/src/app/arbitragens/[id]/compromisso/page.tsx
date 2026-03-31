@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { api } from '@/lib/api';
+import AuthLayout from '@/components/AuthLayout';
 
 interface Compromisso {
   id: string;
@@ -67,11 +68,12 @@ export default function CompromissoPage() {
   };
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center"><p className="text-gray-500">Carregando...</p></main>;
+    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>;
   }
 
   return (
-    <main className="min-h-screen p-8">
+    <AuthLayout>
+      <div className="p-8">
       <div className="max-w-3xl mx-auto">
         <Link href={`/arbitragens/${id}`} className="text-primary-600 hover:underline text-sm mb-4 block">
           &larr; Voltar para o caso
@@ -175,6 +177,7 @@ export default function CompromissoPage() {
           </div>
         )}
       </div>
-    </main>
+      </div>
+    </AuthLayout>
   );
 }
