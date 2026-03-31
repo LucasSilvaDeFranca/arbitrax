@@ -17,8 +17,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           `Tentativa ${attempt}/${maxRetries} de conexao falhou: ${err.message}`,
         );
         if (attempt === maxRetries) {
-          this.logger.error('Nao foi possivel conectar ao banco apos todas as tentativas');
-          throw err;
+          this.logger.error(
+            'Nao foi possivel conectar ao banco. App iniciando sem conexao - requests ao banco vao falhar ate reconectar.',
+          );
+          // Nao lanca erro - permite app iniciar para servir health check e CORS
+          return;
         }
         const delay = attempt * 3000;
         this.logger.log(`Aguardando ${delay / 1000}s antes da proxima tentativa...`);
