@@ -91,7 +91,14 @@ export class ArbitragensService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+          id: true,
+          numero: true,
+          status: true,
+          valorCausa: true,
+          categoria: true,
+          urgencia: true,
+          createdAt: true,
           requerente: { select: { id: true, nome: true } },
           requerido: { select: { id: true, nome: true } },
         },
@@ -121,12 +128,12 @@ export class ArbitragensService {
         arbitros: {
           include: { arbitro: { select: { id: true, nome: true } } },
         },
-        pecas: { orderBy: { protocoladaAt: 'desc' } },
-        provas: { orderBy: { createdAt: 'desc' } },
-        prazos: { orderBy: { fim: 'asc' } },
-        cobrancas: { orderBy: { createdAt: 'desc' } },
-        sentencas: { orderBy: { versao: 'desc' }, take: 1 },
-        compromisso: true,
+        pecas: { orderBy: { protocoladaAt: 'desc' }, take: 10, select: { id: true, tipo: true, protocoladaAt: true } },
+        provas: { orderBy: { createdAt: 'desc' }, take: 10, select: { id: true, tipo: true, descricao: true, createdAt: true } },
+        prazos: { where: { status: 'ATIVO' }, orderBy: { fim: 'asc' }, take: 5, select: { id: true, tipo: true, fim: true, status: true } },
+        sentencas: { orderBy: { versao: 'desc' }, take: 1, select: { id: true, versao: true, status: true, codigoVerif: true, assinadoDigitalmenteAt: true } },
+        compromisso: { select: { id: true, status: true } },
+        _count: { select: { pecas: true, provas: true, prazos: true } },
       },
     });
 

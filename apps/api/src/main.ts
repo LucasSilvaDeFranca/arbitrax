@@ -3,17 +3,24 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
+import compression from 'compression';
 import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Compressao gzip (reduz ~70% do tamanho das respostas)
+  app.use(compression());
+
   // Seguranca
   app.use(helmet({ crossOriginResourcePolicy: false }));
 
   // Servir uploads locais (fallback sem S3)
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads/',
+    maxAge: '1d',
+  });
 
   app.enableCors({
     origin: (process.env.APP_URL || 'http://localhost:3000')

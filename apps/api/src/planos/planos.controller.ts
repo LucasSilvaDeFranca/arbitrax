@@ -1,7 +1,10 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, UseGuards, UseInterceptors, Request } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PlanosService } from './planos.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { MemoryCacheInterceptor } from '../common/interceptors/cache.interceptor';
+
+const planosCache = new MemoryCacheInterceptor(300); // 5 min - planos raramente mudam
 
 @ApiTags('Planos')
 @Controller('api/v1/planos')
@@ -9,6 +12,7 @@ export class PlanosController {
   constructor(private planosService: PlanosService) {}
 
   @Get()
+  @UseInterceptors(planosCache)
   @ApiOperation({ summary: 'Listar planos disponiveis' })
   listar() {
     return this.planosService.listar();
