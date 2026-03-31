@@ -57,4 +57,25 @@ export class CreateArbitragemDto {
   @IsOptional()
   @IsBoolean()
   urgencia?: boolean;
+
+  // Campos opcionais para quando ADVOGADO cria em nome do cliente
+  @ApiPropertyOptional({ description: 'Nome do requerente (quando advogado cria em nome do cliente)' })
+  @IsOptional()
+  @IsString()
+  requerenteNome?: string;
+
+  @ApiPropertyOptional({ description: 'CPF/CNPJ do requerente' })
+  @IsOptional()
+  @IsString()
+  requerenteCpfCnpj?: string;
+
+  @ApiPropertyOptional({ description: 'Telefone do requerente' })
+  @IsOptional()
+  @IsString()
+  requerenteTelefone?: string;
+
+  @ApiPropertyOptional({ description: 'Email do requerente' })
+  @IsOptional()
+  @IsString()
+  requerenteEmail?: string;
 }

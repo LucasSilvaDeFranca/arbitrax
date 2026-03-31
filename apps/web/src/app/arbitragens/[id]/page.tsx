@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getToken } from '@/lib/auth';
+import { getToken, getUser } from '@/lib/auth';
 import { arbitragensApi } from '@/lib/arbitragens';
 import AuthLayout from '@/components/AuthLayout';
 
@@ -165,28 +165,63 @@ export default function ArbitragemDetailPage() {
           </Link>
         </div>
 
-        {/* Transicoes de estado */}
-        {arb.allowedTransitions?.length > 0 && (
-          <div className="bg-white rounded-xl shadow p-6 mb-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-3">Acoes Disponiveis</h3>
-            <div className="flex flex-wrap gap-2">
-              {arb.allowedTransitions.map((t: string) => (
-                <button
-                  key={t}
-                  onClick={() => handleTransition(t)}
-                  disabled={transitioning}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 ${
-                    t === 'CANCELADA'
-                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                      : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
-                  }`}
-                >
-                  {formatStatus(t)}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Acoes por role */}
+        {(() => {
+          const user = getUser();
+          const isAdmin = user?.role === 'ADMIN';
+          const isRequerido = user?.role === 'REQUERIDO' && arb.requerido?.id === user?.id;
+
+          return (
+            <>
+              {/* Admin: transicoes de estado */}
+              {isAdmin && arb.allowedTransitions?.length > 0 && (
+                <div className="bg-white rounded-xl shadow p-6 mb-6">
+                  <h3 className="text-sm font-medium text-gray-500 mb-3">Acoes Admin</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {arb.allowedTransitions.map((t: string) => (
+                      <button
+                        key={t}
+                        onClick={() => handleTransition(t)}
+                        disabled={transitioning}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 ${
+                          t === 'CANCELADA'
+                            ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                            : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+                        }`}
+                      >
+                        {formatStatus(t)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Requerido: aceitar ou recusar */}
+              {isRequerido && arb.status === 'AGUARDANDO_ACEITE' && (
+                <div className="bg-white rounded-xl shadow p-6 mb-6 border-t-4 border-blue-500">
+                  <h3 className="font-semibold text-gray-800 mb-3">Convite de Arbitragem</h3>
+                  <p className="text-sm text-gray-500 mb-4">Voce foi convidado para participar desta arbitragem.</p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleTransition('AGUARDANDO_ASSINATURA')}
+                      disabled={transitioning}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                    >
+                      Aceitar
+                    </button>
+                    <button
+                      onClick={() => handleTransition('RECUSADA')}
+                      disabled={transitioning}
+                      className="px-6 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition disabled:opacity-50"
+                    >
+                      Recusar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* Pecas */}
         {arb.pecas?.length > 0 && (

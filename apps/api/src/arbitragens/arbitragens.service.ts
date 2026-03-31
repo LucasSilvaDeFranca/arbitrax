@@ -12,7 +12,7 @@ import { validateTransition, getAllowedTransitions } from './arbitragem-state-ma
 export class ArbitragensService {
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: string, dto: CreateArbitragemDto) {
+  async create(userId: string, userRole: string, dto: CreateArbitragemDto) {
     // Buscar ou criar o requerido
     let requerido = await this.prisma.user.findFirst({
       where: {
@@ -36,14 +36,51 @@ export class ArbitragensService {
       });
     }
 
+    // Determinar requerenteId e advogadoId conforme role
+    let requerenteId = userId;
+    let advRequerenteId: string | undefined = undefined;
+
+    if (userRole === 'ADVOGADO') {
+      // Advogado cria em nome do cliente
+      if (dto.requerenteNome && dto.requerenteCpfCnpj && dto.requerenteTelefone) {
+        // Buscar ou criar o cliente (requerente)
+        let cliente = await this.prisma.user.findFirst({
+          where: {
+            OR: [
+              { cpfCnpj: dto.requerenteCpfCnpj },
+              ...(dto.requerenteTelefone ? [{ telefone: dto.requerenteTelefone }] : []),
+            ],
+          },
+        });
+
+        if (!cliente) {
+          cliente = await this.prisma.user.create({
+            data: {
+              nome: dto.requerenteNome,
+              cpfCnpj: dto.requerenteCpfCnpj,
+              telefone: dto.requerenteTelefone,
+              email: dto.requerenteEmail || `${dto.requerenteCpfCnpj.replace(/\D/g, '')}@pendente.arbitrax`,
+              senhaHash: '',
+              role: 'REQUERENTE',
+            },
+          });
+        }
+
+        requerenteId = cliente.id;
+        advRequerenteId = userId; // Advogado fica como advogado do requerente
+      }
+      // Se advogado nao informar dados do cliente, ele mesmo e o requerente (retrocompativel)
+    }
+
     // Gerar numero sequencial ARB-YYYY-NNNNN
     const numero = await this.generateNumero();
 
     const arbitragem = await this.prisma.arbitragem.create({
       data: {
         numero,
-        requerenteId: userId,
+        requerenteId,
         requeridoId: requerido.id,
+        advRequerenteId,
         objeto: dto.objeto,
         valorCausa: dto.valorCausa,
         categoria: dto.categoria as any,
@@ -53,6 +90,7 @@ export class ArbitragensService {
       include: {
         requerente: { select: { id: true, nome: true, email: true } },
         requerido: { select: { id: true, nome: true, email: true } },
+        advRequerente: { select: { id: true, nome: true } },
       },
     });
 

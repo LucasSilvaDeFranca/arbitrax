@@ -29,7 +29,7 @@ export class ArbitragensController {
   @Roles('REQUERENTE', 'ADVOGADO', 'ADMIN')
   @ApiOperation({ summary: 'Criar pedido de arbitragem' })
   create(@Request() req: any, @Body() dto: CreateArbitragemDto) {
-    return this.arbitragensService.create(req.user.sub, dto);
+    return this.arbitragensService.create(req.user.sub, req.user.role, dto);
   }
 
   @Get()
@@ -45,14 +45,28 @@ export class ArbitragensController {
   }
 
   @Patch(':id/status')
-  @Roles('ADMIN', 'REQUERENTE', 'REQUERIDO', 'ARBITRO')
-  @ApiOperation({ summary: 'Atualizar status (transicao de estado)' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Atualizar status (transicao de estado) - apenas Admin' })
   updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateStatusDto,
     @Request() req: any,
   ) {
     return this.arbitragensService.updateStatus(id, dto.status, req.user.sub, req.user.role);
+  }
+
+  @Post(':id/aceitar')
+  @Roles('REQUERIDO')
+  @ApiOperation({ summary: 'Requerido aceita convite de arbitragem' })
+  aceitar(@Param('id') id: string, @Request() req: any) {
+    return this.arbitragensService.updateStatus(id, 'AGUARDANDO_ASSINATURA', req.user.sub, 'ADMIN');
+  }
+
+  @Post(':id/recusar')
+  @Roles('REQUERIDO')
+  @ApiOperation({ summary: 'Requerido recusa convite de arbitragem' })
+  recusar(@Param('id') id: string, @Request() req: any) {
+    return this.arbitragensService.updateStatus(id, 'RECUSADA', req.user.sub, 'ADMIN');
   }
 
   @Get(':id/timeline')
