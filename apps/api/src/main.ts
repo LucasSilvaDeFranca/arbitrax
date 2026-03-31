@@ -3,14 +3,14 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
-import compression from 'compression';
+import * as compression from 'compression';
 import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Compressao gzip (reduz ~70% do tamanho das respostas)
+  // Compressao gzip
   app.use(compression());
 
   // Seguranca
