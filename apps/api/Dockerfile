@@ -1,6 +1,9 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 
+# OpenSSL 1.1 necessario para Prisma engine no Alpine
+RUN apk add --no-cache openssl1.1-compat
+
 # Install dependencies
 COPY package.json package-lock.json* ./
 COPY apps/api/package.json ./apps/api/
@@ -21,6 +24,7 @@ RUN npm run build --workspace=apps/api
 # Production
 FROM node:20-alpine AS production
 WORKDIR /app
+RUN apk add --no-cache openssl1.1-compat
 COPY --from=base /app ./
 EXPOSE 3001
 CMD ["node", "apps/api/dist/main.js"]
