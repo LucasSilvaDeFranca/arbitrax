@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { IaService } from '../ia/ia.service';
+import { PdfSignerService } from '../certificado-digital/pdf-signer.service';
 import * as crypto from 'crypto';
 
 const MAX_VERSOES = 5;
@@ -15,6 +16,7 @@ export class SentencaService {
   constructor(
     private prisma: PrismaService,
     private iaService: IaService,
+    private pdfSignerService: PdfSignerService,
   ) {}
 
   /** Acionar IA para gerar projeto de sentenca */
@@ -275,6 +277,28 @@ export class SentencaService {
       pecas.map((p) => ({ tipo: p.tipo, conteudo: p.conteudo || undefined })),
       provas.map((p) => ({ tipo: p.tipo, descricao: p.descricao || undefined, mimeType: p.mimeType || undefined })),
     );
+  }
+
+  /** Assinar sentenca digitalmente com certificado A1 */
+  async assinarDigital(arbitragemId: string, userId: string) {
+    const sentenca = await this.getUltimaSentenca(arbitragemId);
+
+    if (sentenca.status !== 'RATIFICADA') {
+      throw new BadRequestException('Sentenca precisa estar RATIFICADA para assinar digitalmente');
+    }
+
+    if (sentenca.assinadoDigitalmenteAt) {
+      throw new BadRequestException('Sentenca ja foi assinada digitalmente');
+    }
+
+    const result = await this.pdfSignerService.gerarEAssinarSentencaPdf(sentenca.id, userId);
+
+    return {
+      message: 'Sentenca assinada digitalmente com sucesso',
+      pdfUrl: result.pdfUrl,
+      hash: result.hash,
+      certificadoCn: result.cn,
+    };
   }
 
   // ── Helpers ──

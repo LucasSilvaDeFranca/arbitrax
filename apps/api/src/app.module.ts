@@ -15,6 +15,7 @@ import { AdminModule } from './admin/admin.module';
 import { ChatModule } from './chat/chat.module';
 import { PlanosModule } from './planos/planos.module';
 import { CompromissoModule } from './compromisso/compromisso.module';
+import { CertificadoDigitalModule } from './certificado-digital/certificado-digital.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -34,6 +35,7 @@ import { HealthController } from './health.controller';
     ChatModule,
     PlanosModule,
     CompromissoModule,
+    CertificadoDigitalModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

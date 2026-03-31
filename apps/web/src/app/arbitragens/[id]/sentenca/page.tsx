@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { sentencaApi, Sentenca, VersaoResumo } from '@/lib/sentenca';
+import { certificadoApi, CertificadoStatus } from '@/lib/certificado-digital';
 
 function formatStatus(s: string) {
   return s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
@@ -30,6 +31,8 @@ export default function SentencaPage() {
   const [sugestoes, setSugestoes] = useState('');
   const [acting, setActing] = useState(false);
   const [tab, setTab] = useState<'sentenca' | 'versoes'>('sentenca');
+  const [certStatus, setCertStatus] = useState<CertificadoStatus | null>(null);
+  const [assinando, setAssinando] = useState(false);
 
   const token = getToken();
   const user = getUser();
@@ -52,6 +55,13 @@ export default function SentencaPage() {
   };
 
   useEffect(() => { load(); }, [id]);
+
+  // Carregar status do certificado para arbitros
+  useEffect(() => {
+    if (isArbitro && token) {
+      certificadoApi.getStatus(token).then(setCertStatus).catch(() => {});
+    }
+  }, [isArbitro, token]);
 
   const handleAprovar = async () => {
     if (!token) return;
@@ -82,6 +92,17 @@ export default function SentencaPage() {
       await load();
     } catch (err: any) { setError(err.message); }
     finally { setActing(false); }
+  };
+
+  const handleAssinarDigital = async () => {
+    if (!token) return;
+    setAssinando(true);
+    setError('');
+    try {
+      await sentencaApi.assinarDigital(id, token);
+      await load();
+    } catch (err: any) { setError(err.message); }
+    finally { setAssinando(false); }
   };
 
   if (loading) {
@@ -237,6 +258,76 @@ export default function SentencaPage() {
                     >
                       RATIFICAR Sentenca
                     </button>
+                  </div>
+                )}
+
+                {/* Assinatura Digital A1 */}
+                {isArbitro && sentenca.status === 'RATIFICADA' && !sentenca.assinadoDigitalmenteAt && (
+                  <div className="bg-white rounded-xl shadow p-6 border-t-4 border-blue-500">
+                    <h3 className="font-semibold text-gray-800 mb-4">Assinatura Digital A1</h3>
+                    {certStatus?.temCertificado && !certStatus.expirado ? (
+                      <>
+                        <p className="text-sm text-gray-500 mb-2">
+                          Assine esta sentenca com seu certificado digital ICP-Brasil.
+                        </p>
+                        <p className="text-xs text-gray-400 mb-4">
+                          Certificado: {certStatus.cn} | Validade: {certStatus.validade ? new Date(certStatus.validade).toLocaleDateString('pt-BR') : 'N/A'}
+                        </p>
+                        <button
+                          onClick={handleAssinarDigital}
+                          disabled={assinando}
+                          className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50"
+                        >
+                          {assinando ? 'Assinando...' : 'Assinar com Certificado Digital'}
+                        </button>
+                      </>
+                    ) : certStatus?.expirado ? (
+                      <div className="text-sm">
+                        <p className="text-red-600 mb-2">Seu certificado digital esta expirado.</p>
+                        <a href="/certificado-digital" className="text-blue-600 hover:underline">
+                          Atualizar certificado &rarr;
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="text-sm">
+                        <p className="text-gray-500 mb-2">Voce ainda nao configurou um certificado digital A1.</p>
+                        <a href="/certificado-digital" className="text-blue-600 hover:underline">
+                          Configurar certificado digital &rarr;
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sentenca Assinada Digitalmente */}
+                {sentenca.assinadoDigitalmenteAt && (
+                  <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <h3 className="font-semibold text-blue-800">Assinado Digitalmente</h3>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <p className="text-blue-700">
+                        Assinado em: {new Date(sentenca.assinadoDigitalmenteAt).toLocaleString('pt-BR')}
+                      </p>
+                      {sentenca.certificadoCn && (
+                        <p className="text-blue-600">Certificado: {sentenca.certificadoCn}</p>
+                      )}
+                    </div>
+                    {sentenca.pdfUrl && (
+                      <a
+                        href={sentenca.pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                      >
+                        Baixar PDF Assinado
+                      </a>
+                    )}
                   </div>
                 )}
               </div>

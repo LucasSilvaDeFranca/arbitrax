@@ -15,8 +15,12 @@ export interface Sentenca {
   conteudo: SentencaConteudo;
   hashSha256?: string;
   codigoVerif?: string;
+  pdfUrl?: string;
   geradaPor: string;
   createdAt: string;
+  assinadoDigitalmenteAt?: string;
+  assinadoDigitalmentePor?: string;
+  certificadoCn?: string;
   aprovacoes?: Array<{
     acao: string;
     sugestoesTexto?: string;
@@ -53,4 +57,10 @@ export const sentencaApi = {
 
   ratificar: (arbitragemId: string, token: string) =>
     api(`/api/v1/arbitragens/${arbitragemId}/sentenca/ratificar`, { method: 'POST', token }),
+
+  assinarDigital: (arbitragemId: string, token: string) =>
+    api<{ message: string; pdfUrl: string; hash: string; certificadoCn: string }>(
+      `/api/v1/arbitragens/${arbitragemId}/sentenca/assinar-digital`,
+      { method: 'POST', token },
+    ),
 };

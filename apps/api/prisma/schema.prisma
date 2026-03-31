@@ -120,6 +120,15 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Certificado Digital A1
+  certificadoA1Base64      String?   @map("certificado_a1_base64") @db.Text
+  certificadoA1Senha       String?   @map("certificado_a1_senha")
+  certificadoA1Cn          String?   @map("certificado_a1_cn")
+  certificadoA1Emissor     String?   @map("certificado_a1_emissor")
+  certificadoA1Validade    DateTime? @map("certificado_a1_validade")
+  certificadoA1Serial      String?   @map("certificado_a1_serial")
+  certificadoA1AtualizadoEm DateTime? @map("certificado_a1_atualizado_em")
+
   // Relations
   arbitragensRequerente  Arbitragem[]        @relation("Requerente")
   arbitragensRequerido   Arbitragem[]        @relation("Requerido")
@@ -246,6 +255,9 @@ model Sentenca {
   conteudoTexto  String          @map("conteudo_texto")
   pdfUrl         String?         @map("pdf_url")
   hashSha256     String?         @map("hash_sha256")
+  assinadoDigitalmenteAt   DateTime? @map("assinado_digitalmente_at")
+  assinadoDigitalmentePor  String?   @map("assinado_digitalmente_por")
+  certificadoCn            String?   @map("certificado_cn")
   codigoVerif    String?         @unique @map("codigo_verif")
   status         SentencaStatus  @default(RASCUNHO)
   geradaPor      String          @map("gerada_por")
