@@ -30,9 +30,7 @@ COPY --from=base /app/apps/web/public ./apps/web/public
 
 USER nextjs
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
-
-EXPOSE 3000
-ENV PORT=3000
+EXPOSE 80
+ENV PORT=80
+ENV HOSTNAME=0.0.0.0
 CMD ["node", "apps/web/server.js"]
