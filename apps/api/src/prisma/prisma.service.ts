@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
+  private keepAliveInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     super({
@@ -20,6 +21,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     await this.connectWithRetry();
+    this.startKeepAlive();
 
     // Middleware para reconectar automaticamente em caso de perda de conexao
     this.$use(async (params, next) => {
@@ -75,7 +77,28 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
   }
 
+  /** Keep-alive: SELECT 1 a cada 4 minutos para manter conexao com Supabase */
+  private startKeepAlive() {
+    this.keepAliveInterval = setInterval(async () => {
+      try {
+        await this.$queryRaw`SELECT 1`;
+      } catch (err: any) {
+        this.logger.warn(`Keep-alive falhou, reconectando: ${err.message?.substring(0, 80)}`);
+        try {
+          await this.$disconnect();
+          await this.$connect();
+          this.logger.log('Reconectado via keep-alive');
+        } catch {
+          this.logger.error('Falha na reconexao via keep-alive');
+        }
+      }
+    }, 4 * 60 * 1000); // 4 minutos
+
+    this.logger.log('Keep-alive do banco iniciado (intervalo: 4min)');
+  }
+
   async onModuleDestroy() {
+    if (this.keepAliveInterval) clearInterval(this.keepAliveInterval);
     await this.$disconnect();
   }
 }
