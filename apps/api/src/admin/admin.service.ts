@@ -152,6 +152,70 @@ export class AdminService {
     return designacao;
   }
 
+  /** Listar casos de um arbitro */
+  async casosDoArbitro(arbitroId: string) {
+    return this.prisma.arbitragemArbitro.findMany({
+      where: { arbitroId },
+      include: {
+        arbitragem: {
+          select: {
+            id: true,
+            numero: true,
+            status: true,
+            valorCausa: true,
+            categoria: true,
+            createdAt: true,
+            requerente: { select: { nome: true } },
+            requerido: { select: { nome: true } },
+          },
+        },
+      },
+      orderBy: { designadoAt: 'desc' },
+    });
+  }
+
+  /** Arbitro declara impedimento/suspeicao */
+  async declararImpedimento(arbitragemId: string, arbitroId: string, motivo: string) {
+    const designacao = await this.prisma.arbitragemArbitro.findFirst({
+      where: { arbitragemId, arbitroId },
+    });
+    if (!designacao) throw new NotFoundException('Arbitro nao designado para este caso');
+
+    await this.prisma.arbitragemArbitro.update({
+      where: { id: designacao.id },
+      data: { status: 'impedido' },
+    });
+
+    // Notificar admin
+    const admins = await this.prisma.user.findMany({ where: { role: 'ADMIN' } });
+    const arb = await this.prisma.arbitragem.findUnique({ where: { id: arbitragemId } });
+    const arbitro = await this.prisma.user.findUnique({ where: { id: arbitroId } });
+
+    for (const admin of admins) {
+      await this.prisma.notificacao.create({
+        data: {
+          userId: admin.id,
+          titulo: 'Impedimento declarado',
+          mensagem: `Arbitro ${arbitro?.nome} declarou impedimento no caso ${arb?.numero}. Motivo: ${motivo}`,
+          tipo: 'sistema',
+          link: `/arbitragens/${arbitragemId}`,
+        },
+      });
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: arbitroId,
+        acao: 'IMPEDIMENTO_DECLARADO',
+        entidade: 'arbitragem',
+        entidadeId: arbitragemId,
+        dadosDepois: { motivo, arbitroId },
+      },
+    });
+
+    return { message: 'Impedimento declarado com sucesso' };
+  }
+
   /** Criar arbitro (admin) */
   async criarArbitro(data: { nome: string; cpfCnpj: string; email: string; telefone: string; oabNumero?: string }) {
     const existing = await this.prisma.user.findFirst({

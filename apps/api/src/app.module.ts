@@ -4,6 +4,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { StorageModule } from './storage/storage.module';
+import { EmailModule } from './email/email.module';
 import { AuthModule } from './auth/auth.module';
 import { ArbitragensModule } from './arbitragens/arbitragens.module';
 import { PecasModule } from './pecas/pecas.module';
@@ -16,6 +17,8 @@ import { ChatModule } from './chat/chat.module';
 import { PlanosModule } from './planos/planos.module';
 import { CompromissoModule } from './compromisso/compromisso.module';
 import { CertificadoDigitalModule } from './certificado-digital/certificado-digital.module';
+import { ConvitesModule } from './convites/convites.module';
+import { VerificacaoModule } from './verificacao/verificacao.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -24,6 +27,7 @@ import { HealthController } from './health.controller';
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
     PrismaModule,
     StorageModule,
+    EmailModule,
     AuthModule,
     ArbitragensModule,
     PecasModule,
@@ -36,6 +40,8 @@ import { HealthController } from './health.controller';
     PlanosModule,
     CompromissoModule,
     CertificadoDigitalModule,
+    ConvitesModule,
+    VerificacaoModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
