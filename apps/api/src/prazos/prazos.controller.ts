@@ -17,11 +17,18 @@ import { Roles } from '../common/decorators/roles.decorator';
 @ApiTags('Prazos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('api/v1/arbitragens/:arbitragemId/prazos')
+@Controller('api/v1')
 export class PrazosController {
   constructor(private prazosService: PrazosService) {}
 
-  @Post()
+  @Get('prazos/count')
+  @ApiOperation({ summary: 'Contar prazos ativos do usuario (dashboard)' })
+  async countAtivos(@Request() req: any) {
+    const count = await this.prazosService.countAtivosForUser(req.user.sub, req.user.role);
+    return { count };
+  }
+
+  @Post('arbitragens/:arbitragemId/prazos')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Criar prazo manual (Admin)' })
   create(
@@ -32,7 +39,7 @@ export class PrazosController {
     return this.prazosService.create(arbitragemId, req.user.sub, req.user.role, dto);
   }
 
-  @Get()
+  @Get('arbitragens/:arbitragemId/prazos')
   @ApiOperation({ summary: 'Listar prazos do caso' })
   findAll(@Param('arbitragemId') arbitragemId: string, @Request() req: any) {
     return this.prazosService.findAll(arbitragemId, req.user.sub, req.user.role);

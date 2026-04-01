@@ -5,12 +5,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
+import { EventsService } from '../events/events.service';
 
 @Injectable()
 export class ConvitesService {
   constructor(
     private prisma: PrismaService,
     private email: EmailService,
+    private events: EventsService,
   ) {}
 
   /** Criar convite automaticamente ao criar arbitragem */
@@ -113,32 +115,39 @@ export class ConvitesService {
       data: { status: 'AGUARDANDO_ASSINATURA' },
     });
 
-    // Notificar requerente
-    const arb = convite.arbitragem;
-    if (arb.requerente) {
+    // Buscar arbitragem completa para notificacao e email
+    const arbFull = await this.prisma.arbitragem.findUnique({
+      where: { id: convite.arbitragemId },
+      include: { requerente: true, requerido: true },
+    });
+
+    if (arbFull) {
+      // Notificar requerente com o ID correto
       await this.prisma.notificacao.create({
         data: {
-          userId: arb.requerente.nome, // sera corrigido abaixo
+          userId: arbFull.requerenteId,
           titulo: 'Convite aceito',
-          mensagem: `${arb.requerido?.nome} aceitou participar da arbitragem ${arb.numero}.`,
+          mensagem: `${arbFull.requerido?.nome} aceitou participar da arbitragem ${arbFull.numero}.`,
           tipo: 'sistema',
-          link: `/arbitragens/${arb.id}`,
+          link: `/arbitragens/${arbFull.id}`,
         },
       }).catch(() => {}); // silenciar se falhar
 
       // Email ao requerente
-      // Buscar requerente completo
-      const arbFull = await this.prisma.arbitragem.findUnique({
-        where: { id: convite.arbitragemId },
-        include: { requerente: true, requerido: true },
+      await this.email.enviarCasoAceitoRecusado(
+        arbFull.requerente.email,
+        arbFull.requerente.nome,
+        { numero: arbFull.numero, aceito: true, requeridoNome: arbFull.requerido?.nome || '' },
+      );
+
+      // Emitir evento de convite aceito
+      this.events.emitConviteAceito({
+        arbitragemId: arbFull.id,
+        numero: arbFull.numero,
+        requerenteId: arbFull.requerenteId,
+        requeridoId: arbFull.requeridoId,
+        requeridoNome: arbFull.requerido?.nome || '',
       });
-      if (arbFull) {
-        await this.email.enviarCasoAceitoRecusado(
-          arbFull.requerente.email,
-          arbFull.requerente.nome,
-          { numero: arbFull.numero, aceito: true, requeridoNome: arbFull.requerido?.nome || '' },
-        );
-      }
     }
 
     return { message: 'Convite aceito com sucesso', arbitragemId: convite.arbitragemId };

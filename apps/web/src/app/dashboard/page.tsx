@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { authApi } from '@/lib/api';
+import { authApi, api } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { arbitragensApi, Arbitragem } from '@/lib/arbitragens';
 import { notificacoesApi } from '@/lib/notificacoes';
@@ -25,6 +25,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [arbitragens, setArbitragens] = useState<Arbitragem[]>([]);
   const [totalCasos, setTotalCasos] = useState(0);
+  const [prazosPendentes, setPrazosPendentes] = useState(0);
   const [naoLidas, setNaoLidas] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -36,12 +37,14 @@ export default function DashboardPage() {
       authApi.me(token),
       arbitragensApi.list({ page: '1', limit: '5' }, token),
       notificacoesApi.list(token).catch(() => ({ naoLidas: 0 })),
+      api<{ count: number }>('/api/v1/prazos/count', { token }).catch(() => ({ count: 0 })),
     ])
-      .then(([userData, arbData, notifData]) => {
+      .then(([userData, arbData, notifData, prazosData]) => {
         setUser(userData);
         setArbitragens(arbData.data);
         setTotalCasos(arbData.meta.total);
         setNaoLidas(notifData.naoLidas);
+        setPrazosPendentes(prazosData.count);
       })
       .catch(() => {
         localStorage.clear();
@@ -75,7 +78,7 @@ export default function DashboardPage() {
           </div>
           <div className="bg-white rounded-xl shadow p-6">
             <h3 className="text-sm font-medium text-gray-500">Prazos Pendentes</h3>
-            <p className="text-3xl font-bold text-yellow-600 mt-2">0</p>
+            <p className="text-3xl font-bold text-yellow-600 mt-2">{prazosPendentes}</p>
           </div>
           <Link href="/notificacoes" className="bg-white rounded-xl shadow p-6 hover:bg-gray-50 transition block">
             <h3 className="text-sm font-medium text-gray-500">Notificacoes</h3>

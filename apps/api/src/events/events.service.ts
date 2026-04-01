@@ -25,7 +25,7 @@ export interface ConviteAceitoEvent {
   arbitragemId: string;
   numero: string;
   requerenteId: string;
-  requeridoId: string;
+  requeridoId: string | null;
   requeridoNome: string;
 }
 

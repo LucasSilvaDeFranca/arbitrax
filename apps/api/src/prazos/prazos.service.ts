@@ -100,82 +100,116 @@ export class PrazosService {
     const em1dia = new Date();
     em1dia.setDate(em1dia.getDate() + 1);
 
-    // Marcar expirados
+    // --- Expirados: buscar, bulk update, batch notifications ---
     const expirados = await this.prisma.prazo.findMany({
       where: { status: 'ATIVO', fim: { lte: agora } },
-      include: { parte: true, arbitragem: true },
+      select: {
+        id: true,
+        tipo: true,
+        parteId: true,
+        arbitragemId: true,
+        arbitragem: { select: { numero: true } },
+      },
     });
 
-    for (const prazo of expirados) {
-      await this.prisma.prazo.update({
-        where: { id: prazo.id },
+    if (expirados.length > 0) {
+      // Bulk update all expired prazos at once
+      await this.prisma.prazo.updateMany({
+        where: { id: { in: expirados.map((p) => p.id) } },
         data: { status: 'EXPIRADO', notificadoExp: true },
       });
 
-      if (prazo.parteId) {
-        await this.criarNotificacao(
-          prazo.parteId,
-          'Prazo Expirado',
-          `O prazo de ${prazo.tipo.toLowerCase().replace(/_/g, ' ')} no caso ${prazo.arbitragem.numero} expirou.`,
-          'prazo',
-          `/arbitragens/${prazo.arbitragemId}`,
-        );
+      // Batch create notifications for expired prazos
+      const expNotifs = expirados
+        .filter((p) => p.parteId)
+        .map((p) => ({
+          userId: p.parteId!,
+          titulo: 'Prazo Expirado',
+          mensagem: `O prazo de ${p.tipo.toLowerCase().replace(/_/g, ' ')} no caso ${p.arbitragem.numero} expirou.`,
+          tipo: 'prazo',
+          link: `/arbitragens/${p.arbitragemId}`,
+        }));
+
+      if (expNotifs.length > 0) {
+        await this.prisma.notificacao.createMany({ data: expNotifs });
       }
 
-      this.logger.log(`Prazo ${prazo.id} expirado - caso ${prazo.arbitragem.numero}`);
+      for (const prazo of expirados) {
+        this.logger.log(`Prazo ${prazo.id} expirado - caso ${prazo.arbitragem.numero}`);
+      }
     }
 
-    // Notificar D-1 (faltando 1 dia)
+    // --- D-1: buscar, bulk update, batch notifications ---
     const d1 = await this.prisma.prazo.findMany({
       where: {
         status: 'ATIVO',
         notificado1d: false,
         fim: { lte: em1dia, gt: agora },
       },
-      include: { parte: true, arbitragem: true },
+      select: {
+        id: true,
+        tipo: true,
+        parteId: true,
+        arbitragemId: true,
+        arbitragem: { select: { numero: true } },
+      },
     });
 
-    for (const prazo of d1) {
-      await this.prisma.prazo.update({
-        where: { id: prazo.id },
+    if (d1.length > 0) {
+      await this.prisma.prazo.updateMany({
+        where: { id: { in: d1.map((p) => p.id) } },
         data: { notificado1d: true },
       });
 
-      if (prazo.parteId) {
-        await this.criarNotificacao(
-          prazo.parteId,
-          'Prazo vence AMANHA',
-          `Falta 1 dia para o prazo de ${prazo.tipo.toLowerCase().replace(/_/g, ' ')} no caso ${prazo.arbitragem.numero}.`,
-          'prazo',
-          `/arbitragens/${prazo.arbitragemId}`,
-        );
+      const d1Notifs = d1
+        .filter((p) => p.parteId)
+        .map((p) => ({
+          userId: p.parteId!,
+          titulo: 'Prazo vence AMANHA',
+          mensagem: `Falta 1 dia para o prazo de ${p.tipo.toLowerCase().replace(/_/g, ' ')} no caso ${p.arbitragem.numero}.`,
+          tipo: 'prazo',
+          link: `/arbitragens/${p.arbitragemId}`,
+        }));
+
+      if (d1Notifs.length > 0) {
+        await this.prisma.notificacao.createMany({ data: d1Notifs });
       }
     }
 
-    // Notificar D-3 (faltando 3 dias)
+    // --- D-3: buscar, bulk update, batch notifications ---
     const d3 = await this.prisma.prazo.findMany({
       where: {
         status: 'ATIVO',
         notificado3d: false,
         fim: { lte: em3dias, gt: em1dia },
       },
-      include: { parte: true, arbitragem: true },
+      select: {
+        id: true,
+        tipo: true,
+        parteId: true,
+        arbitragemId: true,
+        arbitragem: { select: { numero: true } },
+      },
     });
 
-    for (const prazo of d3) {
-      await this.prisma.prazo.update({
-        where: { id: prazo.id },
+    if (d3.length > 0) {
+      await this.prisma.prazo.updateMany({
+        where: { id: { in: d3.map((p) => p.id) } },
         data: { notificado3d: true },
       });
 
-      if (prazo.parteId) {
-        await this.criarNotificacao(
-          prazo.parteId,
-          'Prazo em 3 dias',
-          `Faltam 3 dias para o prazo de ${prazo.tipo.toLowerCase().replace(/_/g, ' ')} no caso ${prazo.arbitragem.numero}.`,
-          'prazo',
-          `/arbitragens/${prazo.arbitragemId}`,
-        );
+      const d3Notifs = d3
+        .filter((p) => p.parteId)
+        .map((p) => ({
+          userId: p.parteId!,
+          titulo: 'Prazo em 3 dias',
+          mensagem: `Faltam 3 dias para o prazo de ${p.tipo.toLowerCase().replace(/_/g, ' ')} no caso ${p.arbitragem.numero}.`,
+          tipo: 'prazo',
+          link: `/arbitragens/${p.arbitragemId}`,
+        }));
+
+      if (d3Notifs.length > 0) {
+        await this.prisma.notificacao.createMany({ data: d3Notifs });
       }
     }
 
@@ -184,6 +218,34 @@ export class PrazosService {
       notificadosD1: d1.length,
       notificadosD3: d3.length,
     };
+  }
+
+  /** Contar prazos ativos do usuario (para dashboard) */
+  async countAtivosForUser(userId: string, userRole: string): Promise<number> {
+    const whereArbitragem: any = {};
+
+    if (userRole === 'ADMIN') {
+      // Admin ve todos
+    } else if (userRole === 'ARBITRO') {
+      whereArbitragem.arbitros = { some: { arbitroId: userId } };
+    } else if (userRole === 'ADVOGADO') {
+      whereArbitragem.OR = [
+        { advRequerenteId: userId },
+        { advRequeridoId: userId },
+      ];
+    } else {
+      whereArbitragem.OR = [
+        { requerenteId: userId },
+        { requeridoId: userId },
+      ];
+    }
+
+    return this.prisma.prazo.count({
+      where: {
+        status: 'ATIVO',
+        arbitragem: whereArbitragem,
+      },
+    });
   }
 
   private async criarNotificacao(

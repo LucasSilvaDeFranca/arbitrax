@@ -2,17 +2,30 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateArbitragemDto } from './dto/create-arbitragem.dto';
 import { ListArbitragensDto } from './dto/list-arbitragens.dto';
 import { validateTransition, getAllowedTransitions } from './arbitragem-state-machine';
+import { EventsService } from '../events/events.service';
+import { PlanosService } from '../planos/planos.service';
 
 @Injectable()
 export class ArbitragensService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private events: EventsService,
+    private planos: PlanosService,
+  ) {}
 
   async create(userId: string, userRole: string, dto: CreateArbitragemDto) {
+    // Verificar limite do plano antes de criar
+    const limite = await this.planos.verificarLimite(userId);
+    if (!limite.permitido) {
+      throw new BadRequestException(limite.motivo);
+    }
+
     // Buscar ou criar o requerido
     let requerido = await this.prisma.user.findFirst({
       where: {
@@ -92,6 +105,20 @@ export class ArbitragensService {
         requerido: { select: { id: true, nome: true, email: true } },
         advRequerente: { select: { id: true, nome: true } },
       },
+    });
+
+    // Incrementar uso do plano
+    await this.planos.incrementarUso(userId);
+
+    // Emitir evento de arbitragem criada
+    this.events.emitArbitragemCriada({
+      arbitragemId: arbitragem.id,
+      numero: arbitragem.numero,
+      requerenteId,
+      requeridoEmail: requerido.email,
+      requeridoNome: requerido.nome,
+      objeto: dto.objeto,
+      valorCausa: Number(dto.valorCausa),
     });
 
     return arbitragem;
