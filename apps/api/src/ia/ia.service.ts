@@ -2,6 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
+export interface ResumoCasoResult {
+  titulo: string;
+  resumoExecutivo: string;
+  partesEnvolvidas: string;
+  cronologia: string;
+  pontosPrincipais: string[];
+  statusAtual: string;
+}
+
 export interface AnaliseProvasResult {
   suficiente: boolean;
   lacunas: Array<{
@@ -171,6 +180,61 @@ Responda EXCLUSIVAMENTE em JSON valido:
     } catch (err) {
       this.logger.error('Erro ao refinar sentenca IA', err);
       throw err;
+    }
+  }
+
+  async resumirCaso(
+    caso: { numero: string; objeto: string; valorCausa: number; categoria: string; status: string },
+    pecas: Array<{ tipo: string; conteudo?: string }>,
+    provas: Array<{ tipo: string; descricao?: string }>,
+  ): Promise<ResumoCasoResult> {
+    const prompt = `Voce e um assistente juridico especializado em arbitragem brasileira (Lei 9.307/96).
+
+Gere um RESUMO EXECUTIVO do caso abaixo para uso interno do arbitro/administrador.
+
+CASO:
+- Numero: ${caso.numero}
+- Objeto: ${caso.objeto}
+- Valor da causa: R$ ${caso.valorCausa}
+- Categoria: ${caso.categoria}
+- Status atual: ${caso.status}
+
+PECAS PROTOCOLADAS (${pecas.length}):
+${pecas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.conteudo?.substring(0, 300) || '(sem texto)'}`).join('\n')}
+
+PROVAS ENVIADAS (${provas.length}):
+${provas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.descricao || '(sem descricao)'}`).join('\n')}
+
+Responda EXCLUSIVAMENTE em JSON valido:
+{
+  "titulo": "titulo curto do caso",
+  "resumoExecutivo": "resumo em 3-5 paragrafos",
+  "partesEnvolvidas": "descricao das partes e seus papeis",
+  "cronologia": "linha do tempo dos eventos relevantes",
+  "pontosPrincipais": ["ponto 1", "ponto 2", "..."],
+  "statusAtual": "analise do status atual e proximos passos"
+}`;
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: this.config.get('AI_MODEL', 'gpt-4o'),
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices[0]?.message?.content || '{}';
+      return JSON.parse(content);
+    } catch (err) {
+      this.logger.error('Erro ao resumir caso IA', err);
+      return {
+        titulo: caso.numero,
+        resumoExecutivo: 'Erro ao gerar resumo via IA. Tente novamente.',
+        partesEnvolvidas: '',
+        cronologia: '',
+        pontosPrincipais: [],
+        statusAtual: caso.status,
+      };
     }
   }
 }

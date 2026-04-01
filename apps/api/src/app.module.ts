@@ -19,6 +19,8 @@ import { CompromissoModule } from './compromisso/compromisso.module';
 import { CertificadoDigitalModule } from './certificado-digital/certificado-digital.module';
 import { ConvitesModule } from './convites/convites.module';
 import { VerificacaoModule } from './verificacao/verificacao.module';
+import { IaModule } from './ia/ia.module';
+import { EventsModule } from './events/events.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -28,6 +30,7 @@ import { HealthController } from './health.controller';
     PrismaModule,
     StorageModule,
     EmailModule,
+    EventsModule,
     AuthModule,
     ArbitragensModule,
     PecasModule,
@@ -42,6 +45,7 @@ import { HealthController } from './health.controller';
     CertificadoDigitalModule,
     ConvitesModule,
     VerificacaoModule,
+    IaModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -120,6 +120,10 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // 2FA (TOTP)
+  twoFactorSecret  String?  @map("two_factor_secret")
+  twoFactorEnabled Boolean  @default(false) @map("two_factor_enabled")
+
   // Certificado Digital A1
   certificadoA1Base64      String?   @map("certificado_a1_base64") @db.Text
   certificadoA1Senha       String?   @map("certificado_a1_senha")
