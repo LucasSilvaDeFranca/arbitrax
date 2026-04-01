@@ -21,6 +21,8 @@ import { ConvitesModule } from './convites/convites.module';
 import { VerificacaoModule } from './verificacao/verificacao.module';
 import { IaModule } from './ia/ia.module';
 import { EventsModule } from './events/events.module';
+import { PdfModule } from './pdf/pdf.module';
+import { PdfController } from './pdf/pdf.controller';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -46,8 +48,9 @@ import { HealthController } from './health.controller';
     ConvitesModule,
     VerificacaoModule,
     IaModule,
+    PdfModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, PdfController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
