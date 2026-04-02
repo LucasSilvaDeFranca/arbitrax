@@ -96,7 +96,7 @@ export default function AdminPage() {
               </div>
               <div className="bg-white rounded-xl shadow p-5 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
                 <p className="text-sm text-gray-500 dark:text-slate-400">Usuarios</p>
-                <p className="text-3xl font-bold text-gray-600">{stats.totalUsuarios}</p>
+                <p className="text-3xl font-bold text-gray-600 dark:text-slate-300">{stats.totalUsuarios}</p>
               </div>
             </div>
 
@@ -154,7 +154,7 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-xs dark:text-slate-300">{formatStatus(c.status)}</td>
                     <td className="px-4 py-3 text-sm">
                       {c.arbitros?.length ? c.arbitros.map((a: any) => a.arbitro.nome).join(', ') : (
-                        <span className="text-orange-500">Nenhum</span>
+                        <span className="text-orange-500 dark:text-orange-400">Nenhum</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -259,14 +259,14 @@ export default function AdminPage() {
                 <p className="text-sm text-gray-500 dark:text-slate-400">{a.email}</p>
                 {a.oabNumero && <p className="text-sm text-gray-400 dark:text-slate-500">{a.oabNumero}</p>}
                 <div className="mt-3 flex items-center gap-2">
-                  <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
+                  <span className="px-2 py-1 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 rounded text-xs font-medium">
                     {a.casosAtivos} casos ativos
                   </span>
                 </div>
               </div>
             ))}
             {arbitros.length === 0 && (
-              <p className="text-gray-500 col-span-full text-center py-8">Nenhum arbitro cadastrado.</p>
+              <p className="text-gray-500 dark:text-slate-400 col-span-full text-center py-8">Nenhum arbitro cadastrado.</p>
             )}
           </div>
           </div>
