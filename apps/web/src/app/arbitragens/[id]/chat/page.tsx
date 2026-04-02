@@ -35,8 +35,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     loadMessages();
-    // Poll a cada 5s
-    const interval = setInterval(loadMessages, 5000);
+    // Poll a cada 10s
+    const interval = setInterval(loadMessages, 10000);
     return () => clearInterval(interval);
   }, [id]);
 

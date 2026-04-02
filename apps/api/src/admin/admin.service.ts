@@ -17,6 +17,8 @@ export class AdminService {
       sentencasPendentes,
       totalArbitros,
       totalUsuarios,
+      casosPorStatus,
+      casosPorCategoria,
     ] = await Promise.all([
       this.prisma.arbitragem.count(),
       this.prisma.arbitragem.count({
@@ -27,19 +29,15 @@ export class AdminService {
       }),
       this.prisma.user.count({ where: { role: 'ARBITRO' } }),
       this.prisma.user.count(),
+      this.prisma.arbitragem.groupBy({
+        by: ['status'],
+        _count: { id: true },
+      }),
+      this.prisma.arbitragem.groupBy({
+        by: ['categoria'],
+        _count: { id: true },
+      }),
     ]);
-
-    // Casos por status
-    const casosPorStatus = await this.prisma.arbitragem.groupBy({
-      by: ['status'],
-      _count: { id: true },
-    });
-
-    // Casos por categoria
-    const casosPorCategoria = await this.prisma.arbitragem.groupBy({
-      by: ['categoria'],
-      _count: { id: true },
-    });
 
     return {
       totalCasos,

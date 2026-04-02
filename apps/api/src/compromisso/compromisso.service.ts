@@ -184,7 +184,7 @@ export class CompromissoService {
         arbitragemId,
         numero: arb.numero,
         requerenteId: arb.requerenteId,
-        requeridoId: arb.requeridoId!,
+        requeridoId: arb.requeridoId || '',
       });
     }
 
