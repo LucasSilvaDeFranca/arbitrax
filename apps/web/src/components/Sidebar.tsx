@@ -32,9 +32,11 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/arbitragens', label: 'Arbitragens', icon: '⚖' },
   { href: '/arbitragens/nova', label: 'Nova Arbitragem', icon: '➕', roles: ['REQUERENTE', 'ADVOGADO', 'ADMIN'] },
+  { href: '/arbitro', label: 'Meus Casos', icon: '⚖', roles: ['ARBITRO'] },
   { href: '/notificacoes', label: 'Notificacoes', icon: '🔔' },
   { href: '/certificado-digital', label: 'Certificado Digital', icon: '🔐', roles: ['ARBITRO', 'ADVOGADO'] },
   { href: '/admin', label: 'Painel Admin', icon: '🛡', roles: ['ADMIN'] },
+  { href: '/admin/audit', label: 'Audit Log', icon: '📋', roles: ['ADMIN'] },
 ];
 
 export default function Sidebar() {

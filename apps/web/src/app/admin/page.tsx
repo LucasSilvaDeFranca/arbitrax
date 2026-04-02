@@ -18,6 +18,8 @@ export default function AdminPage() {
   const [casos, setCasos] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'overview' | 'casos' | 'arbitros'>('overview');
+  const [novoArbitro, setNovoArbitro] = useState({ nome: '', cpfCnpj: '', email: '', telefone: '', oabNumero: '' });
+  const [criandoArbitro, setCriandoArbitro] = useState(false);
 
   const token = getToken();
   const user = getUser();
@@ -178,6 +180,78 @@ export default function AdminPage() {
 
         {/* Arbitros */}
         {tab === 'arbitros' && (
+          <div className="space-y-6">
+          {/* Form de cadastro */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h3 className="font-semibold text-gray-800 mb-4">Cadastrar Novo Arbitro</h3>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!token) return;
+                setCriandoArbitro(true);
+                try {
+                  await adminApi.criarArbitro(novoArbitro, token);
+                  setNovoArbitro({ nome: '', cpfCnpj: '', email: '', telefone: '', oabNumero: '' });
+                  const a = await adminApi.listarArbitros(token);
+                  setArbitros(a);
+                  alert('Arbitro cadastrado com sucesso');
+                } catch (err: any) {
+                  alert(err.message);
+                } finally {
+                  setCriandoArbitro(false);
+                }
+              }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            >
+              <input
+                type="text"
+                placeholder="Nome completo"
+                value={novoArbitro.nome}
+                onChange={(e) => setNovoArbitro({ ...novoArbitro, nome: e.target.value })}
+                className="border rounded-lg px-3 py-2 text-sm"
+                required
+              />
+              <input
+                type="text"
+                placeholder="CPF/CNPJ"
+                value={novoArbitro.cpfCnpj}
+                onChange={(e) => setNovoArbitro({ ...novoArbitro, cpfCnpj: e.target.value })}
+                className="border rounded-lg px-3 py-2 text-sm"
+                required
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={novoArbitro.email}
+                onChange={(e) => setNovoArbitro({ ...novoArbitro, email: e.target.value })}
+                className="border rounded-lg px-3 py-2 text-sm"
+                required
+              />
+              <input
+                type="text"
+                placeholder="Telefone"
+                value={novoArbitro.telefone}
+                onChange={(e) => setNovoArbitro({ ...novoArbitro, telefone: e.target.value })}
+                className="border rounded-lg px-3 py-2 text-sm"
+                required
+              />
+              <input
+                type="text"
+                placeholder="OAB (opcional)"
+                value={novoArbitro.oabNumero}
+                onChange={(e) => setNovoArbitro({ ...novoArbitro, oabNumero: e.target.value })}
+                className="border rounded-lg px-3 py-2 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={criandoArbitro}
+                className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+              >
+                {criandoArbitro ? 'Cadastrando...' : 'Cadastrar Arbitro'}
+              </button>
+            </form>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {arbitros.map((a) => (
               <div key={a.id} className="bg-white rounded-xl shadow p-5">
@@ -194,6 +268,7 @@ export default function AdminPage() {
             {arbitros.length === 0 && (
               <p className="text-gray-500 col-span-full text-center py-8">Nenhum arbitro cadastrado.</p>
             )}
+          </div>
           </div>
         )}
       </div>

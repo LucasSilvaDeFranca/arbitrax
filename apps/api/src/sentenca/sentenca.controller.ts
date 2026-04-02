@@ -66,6 +66,13 @@ export class SentencaController {
     return this.sentencaService.ratificar(arbitragemId, req.user.sub);
   }
 
+  @Post('sentenca/publicar')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Publicar sentenca e encerrar arbitragem' })
+  publicar(@Param('arbitragemId') arbitragemId: string, @Request() req: any) {
+    return this.sentencaService.publicar(arbitragemId, req.user.sub);
+  }
+
   @Post('sentenca/assinar-digital')
   @Roles('ARBITRO')
   @ApiOperation({ summary: 'Assinar sentenca digitalmente com certificado A1 ICP-Brasil' })

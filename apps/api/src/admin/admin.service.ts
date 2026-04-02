@@ -216,6 +216,25 @@ export class AdminService {
     return { message: 'Impedimento declarado com sucesso' };
   }
 
+  /** Listar audit logs */
+  async getAuditLogs(page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { id: true, nome: true } },
+        },
+      }),
+      this.prisma.auditLog.count(),
+    ]);
+
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+  }
+
   /** Criar arbitro (admin) */
   async criarArbitro(data: { nome: string; cpfCnpj: string; email: string; telefone: string; oabNumero?: string }) {
     const existing = await this.prisma.user.findFirst({

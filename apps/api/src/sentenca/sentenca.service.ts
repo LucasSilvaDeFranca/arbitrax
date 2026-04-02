@@ -7,6 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { IaService } from '../ia/ia.service';
 import { PdfSignerService } from '../certificado-digital/pdf-signer.service';
+import { EmailService } from '../email/email.service';
+import { EventsService } from '../events/events.service';
 import * as crypto from 'crypto';
 
 const MAX_VERSOES = 5;
@@ -17,6 +19,8 @@ export class SentencaService {
     private prisma: PrismaService,
     private iaService: IaService,
     private pdfSignerService: PdfSignerService,
+    private emailService: EmailService,
+    private events: EventsService,
   ) {}
 
   /** Acionar IA para gerar projeto de sentenca */
@@ -258,6 +262,17 @@ export class SentencaService {
       },
     });
 
+    // Emitir evento de sentenca ratificada
+    const arb = await this.getArbitragem(arbitragemId);
+    this.events.emitSentencaRatificada({
+      arbitragemId,
+      numero: arb.numero,
+      sentencaId: sentenca.id,
+      requerenteId: arb.requerenteId,
+      requeridoId: arb.requeridoId!,
+      codigoVerif,
+    });
+
     return { message: 'Sentenca ratificada', codigoVerif, versao: sentenca.versao };
   }
 
@@ -298,6 +313,94 @@ export class SentencaService {
       pdfUrl: result.pdfUrl,
       hash: result.hash,
       certificadoCn: result.cn,
+    };
+  }
+
+  /** Publicar sentenca (admin) - envia para as partes e encerra arbitragem */
+  async publicar(arbitragemId: string, userId: string) {
+    const sentenca = await this.getUltimaSentenca(arbitragemId);
+
+    if (sentenca.status !== 'RATIFICADA') {
+      throw new BadRequestException('Sentenca precisa estar RATIFICADA para publicar');
+    }
+
+    const arb = await this.prisma.arbitragem.findUnique({
+      where: { id: arbitragemId },
+      include: {
+        requerente: { select: { id: true, nome: true, email: true } },
+        requerido: { select: { id: true, nome: true, email: true } },
+      },
+    });
+
+    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
+
+    // Atualizar sentenca para PUBLICADA
+    await this.prisma.sentenca.update({
+      where: { id: sentenca.id },
+      data: { status: 'PUBLICADA' },
+    });
+
+    // Encerrar arbitragem
+    await this.prisma.arbitragem.update({
+      where: { id: arbitragemId },
+      data: { status: 'ENCERRADA' },
+    });
+
+    // Enviar email para ambas as partes
+    if (arb.requerente) {
+      await this.emailService.enviarNotificacaoSentenca(
+        arb.requerente.email,
+        arb.requerente.nome,
+        { numero: arb.numero, acao: 'Publicada', codigoVerif: sentenca.codigoVerif || undefined },
+      );
+    }
+
+    if (arb.requerido) {
+      await this.emailService.enviarNotificacaoSentenca(
+        arb.requerido.email,
+        arb.requerido.nome,
+        { numero: arb.numero, acao: 'Publicada', codigoVerif: sentenca.codigoVerif || undefined },
+      );
+    }
+
+    // Criar notificacoes para ambas as partes
+    await this.prisma.notificacao.create({
+      data: {
+        userId: arb.requerenteId,
+        titulo: 'Sentenca Publicada',
+        mensagem: `A sentenca do caso ${arb.numero} foi publicada. Codigo de verificacao: ${sentenca.codigoVerif || 'N/A'}`,
+        tipo: 'sentenca',
+        link: `/arbitragens/${arbitragemId}`,
+      },
+    });
+
+    if (arb.requeridoId) {
+      await this.prisma.notificacao.create({
+        data: {
+          userId: arb.requeridoId,
+          titulo: 'Sentenca Publicada',
+          mensagem: `A sentenca do caso ${arb.numero} foi publicada. Codigo de verificacao: ${sentenca.codigoVerif || 'N/A'}`,
+          tipo: 'sentenca',
+          link: `/arbitragens/${arbitragemId}`,
+        },
+      });
+    }
+
+    // Audit log
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        acao: 'SENTENCA_PUBLICADA',
+        entidade: 'sentenca',
+        entidadeId: sentenca.id,
+        dadosDepois: { codigoVerif: sentenca.codigoVerif },
+      },
+    });
+
+    return {
+      message: 'Sentenca publicada com sucesso',
+      codigoVerif: sentenca.codigoVerif,
+      versao: sentenca.versao,
     };
   }
 

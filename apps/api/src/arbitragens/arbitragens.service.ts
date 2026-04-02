@@ -26,6 +26,18 @@ export class ArbitragensService {
       throw new BadRequestException(limite.motivo);
     }
 
+    // Verificar se valorCausa excede o maximo do plano
+    const assinatura = await this.planos.getAssinatura(userId);
+    if (assinatura && assinatura.plano) {
+      const valorMaxCausa = Number(assinatura.plano.valorMaxCausa);
+      const valorCausa = Number(dto.valorCausa);
+      if (valorMaxCausa > 0 && valorCausa > valorMaxCausa) {
+        throw new BadRequestException(
+          `Valor da causa (R$ ${valorCausa.toLocaleString('pt-BR')}) excede o maximo permitido pelo plano ${assinatura.plano.label} (R$ ${valorMaxCausa.toLocaleString('pt-BR')}). Faca upgrade do plano.`,
+        );
+      }
+    }
+
     // Buscar ou criar o requerido
     let requerido = await this.prisma.user.findFirst({
       where: {

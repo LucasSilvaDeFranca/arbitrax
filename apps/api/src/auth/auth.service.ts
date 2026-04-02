@@ -70,6 +70,36 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais invalidas');
     }
 
+    // Se 2FA esta habilitado, nao retorna tokens - exige TOTP primeiro
+    if (user.twoFactorEnabled) {
+      return {
+        requiresTwoFactor: true,
+        userId: user.id,
+      };
+    }
+
+    const tokens = await this.generateTokens(user.id, user.role);
+
+    return {
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+      },
+      ...tokens,
+    };
+  }
+
+  async loginAfter2fa(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.ativo) {
+      throw new UnauthorizedException('Usuario nao encontrado');
+    }
+
     const tokens = await this.generateTokens(user.id, user.role);
 
     return {

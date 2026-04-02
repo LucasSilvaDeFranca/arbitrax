@@ -18,6 +18,18 @@ export interface ArbitroInfo {
   casosAtivos: number;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  userId: string;
+  acao: string;
+  entidade: string;
+  entidadeId?: string;
+  dadosAntes?: any;
+  dadosDepois?: any;
+  createdAt: string;
+  user?: { nome: string };
+}
+
 export const adminApi = {
   getStats: (token: string) =>
     api<AdminStats>('/api/v1/admin/stats', { token }),
@@ -36,4 +48,16 @@ export const adminApi = {
       body: JSON.stringify({ arbitroId }),
       token,
     }),
+
+  criarArbitro: (data: { nome: string; cpfCnpj: string; email: string; telefone: string; oabNumero?: string }, token: string) =>
+    api('/api/v1/admin/arbitros', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  getAuditLogs: (params: { page?: string; limit?: string }, token: string) => {
+    const qs = new URLSearchParams(params).toString();
+    return api<{ data: AuditLogEntry[]; meta: any }>(`/api/v1/admin/audit-logs?${qs}`, { token });
+  },
 };

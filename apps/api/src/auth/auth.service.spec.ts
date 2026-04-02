@@ -93,8 +93,8 @@ describe('AuthService', () => {
         senha: 'senha123',
       });
 
-      expect(result.user.email).toBe('carlos@test.com');
-      expect(result.accessToken).toBeDefined();
+      expect((result as any).user.email).toBe('carlos@test.com');
+      expect((result as any).accessToken).toBeDefined();
     });
 
     it('deve rejeitar email inexistente', async () => {

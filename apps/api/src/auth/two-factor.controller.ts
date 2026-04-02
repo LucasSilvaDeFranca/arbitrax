@@ -12,6 +12,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { TwoFactorService } from './two-factor.service';
+import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('2FA')
@@ -19,6 +20,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class TwoFactorController {
   constructor(
     private twoFactorService: TwoFactorService,
+    private authService: AuthService,
     private prisma: PrismaService,
   ) {}
 
@@ -95,7 +97,7 @@ export class TwoFactorController {
   }
 
   @Post('validate')
-  @ApiOperation({ summary: 'Validar token TOTP durante o fluxo de login' })
+  @ApiOperation({ summary: 'Validar token TOTP durante o fluxo de login e retornar tokens JWT' })
   async validate(
     @Body('userId') userId: string,
     @Body('token') token: string,
@@ -125,6 +127,7 @@ export class TwoFactorController {
       throw new UnauthorizedException('Token TOTP invalido');
     }
 
-    return { valid: true, message: '2FA validado com sucesso' };
+    // Retornar tokens JWT apos validacao 2FA bem-sucedida
+    return this.authService.loginAfter2fa(user.id);
   }
 }

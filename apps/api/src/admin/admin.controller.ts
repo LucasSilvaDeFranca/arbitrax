@@ -62,6 +62,17 @@ export class AdminController {
     return this.adminService.designarArbitro(arbitragemId, dto.arbitroId, req.user.sub);
   }
 
+  @Get('audit-logs')
+  @ApiOperation({ summary: 'Listar audit logs' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getAuditLogs(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getAuditLogs(Number(page) || 1, Number(limit) || 20);
+  }
+
   @Post('arbitros')
   @ApiOperation({ summary: 'Cadastrar novo arbitro' })
   criarArbitro(@Body() dto: { nome: string; cpfCnpj: string; email: string; telefone: string; oabNumero?: string }) {

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ZapSignService } from './zapsign.service';
+import { EventsService } from '../events/events.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class CompromissoService {
   constructor(
     private prisma: PrismaService,
     private zapSign: ZapSignService,
+    private events: EventsService,
   ) {}
 
   /** Gerar compromisso arbitral e enviar para assinatura */
@@ -175,6 +177,14 @@ export class CompromissoService {
       await this.prisma.arbitragem.update({
         where: { id: arbitragemId },
         data: { status: 'EM_INSTRUCAO' },
+      });
+
+      // Emitir evento de compromisso assinado
+      this.events.emitCompromissoAssinado({
+        arbitragemId,
+        numero: arb.numero,
+        requerenteId: arb.requerenteId,
+        requeridoId: arb.requeridoId!,
       });
     }
 

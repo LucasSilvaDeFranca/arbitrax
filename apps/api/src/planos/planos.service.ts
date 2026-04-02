@@ -116,4 +116,10 @@ export class PlanosService implements OnModuleInit {
       data: { usadoMes: { increment: 1 } },
     });
   }
+
+  async resetarUsoMensal() {
+    await this.prisma.assinatura.updateMany({
+      data: { usadoMes: 0 },
+    });
+  }
 }
