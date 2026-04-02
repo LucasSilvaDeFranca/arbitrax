@@ -24,29 +24,29 @@ export default function VerificarResultadoPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-400">Verificando...</p>
+      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0f172a]">
+        <p className="text-gray-400 dark:text-slate-500">Verificando...</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0f172a] p-4">
       <div className="max-w-lg w-full">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-primary-700">ArbitraX</h1>
-          <p className="text-gray-400 text-sm">Verificacao de Documento</p>
+          <h1 className="text-3xl font-bold text-primary-700 dark:text-white">ArbitraX</h1>
+          <p className="text-gray-400 dark:text-slate-500 text-sm">Verificacao de Documento</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
           {notFound ? (
             <div className="p-10 text-center">
               <div className="w-20 h-20 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
                 <span className="text-4xl">✗</span>
               </div>
               <h2 className="text-2xl font-bold text-red-600 mb-2">Documento Nao Encontrado</h2>
-              <p className="text-gray-500 mb-2">Codigo: <span className="font-mono font-bold">{codigo}</span></p>
-              <p className="text-sm text-gray-400">
+              <p className="text-gray-500 dark:text-slate-400 mb-2">Codigo: <span className="font-mono font-bold">{codigo}</span></p>
+              <p className="text-sm text-gray-400 dark:text-slate-500">
                 Este codigo nao corresponde a nenhuma sentenca arbitral registrada.
                 Verifique se o codigo foi digitado corretamente.
               </p>
@@ -63,47 +63,47 @@ export default function VerificarResultadoPage() {
               </div>
 
               <div className="p-6 space-y-4">
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="bg-gray-50 dark:bg-slate-800/30 rounded-lg p-4 space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Codigo</span>
+                    <span className="text-gray-500 dark:text-slate-400">Codigo</span>
                     <span className="font-mono font-bold text-green-700">{data.codigoVerif}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Caso</span>
+                    <span className="text-gray-500 dark:text-slate-400">Caso</span>
                     <span className="font-medium">{data.numero}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Status</span>
+                    <span className="text-gray-500 dark:text-slate-400">Status</span>
                     <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">{data.status}</span>
                   </div>
                   {data.requerente && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Requerente</span>
+                      <span className="text-gray-500 dark:text-slate-400">Requerente</span>
                       <span className="font-medium">{data.requerente}</span>
                     </div>
                   )}
                   {data.requerido && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Requerido</span>
+                      <span className="text-gray-500 dark:text-slate-400">Requerido</span>
                       <span className="font-medium">{data.requerido}</span>
                     </div>
                   )}
                   {data.dataRatificacao && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Ratificada em</span>
+                      <span className="text-gray-500 dark:text-slate-400">Ratificada em</span>
                       <span className="font-medium">{new Date(data.dataRatificacao).toLocaleDateString('pt-BR')}</span>
                     </div>
                   )}
                 </div>
 
                 {data.hashSha256 && (
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-400">Hash SHA-256 do documento:</p>
-                    <p className="font-mono text-xs text-gray-600 break-all mt-1">{data.hashSha256}</p>
+                  <div className="bg-gray-50 dark:bg-slate-800/30 rounded-lg p-3">
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Hash SHA-256 do documento:</p>
+                    <p className="font-mono text-xs text-gray-600 dark:text-slate-300 break-all mt-1">{data.hashSha256}</p>
                   </div>
                 )}
 
-                <div className="text-center text-xs text-gray-400 pt-2">
+                <div className="text-center text-xs text-gray-400 dark:text-slate-500 pt-2">
                   <p>Sentenca arbitral com validade juridica conforme Lei 9.307/96</p>
                   <p>Verificado em {new Date().toLocaleString('pt-BR')}</p>
                 </div>
@@ -113,7 +113,7 @@ export default function VerificarResultadoPage() {
         </div>
 
         <div className="text-center mt-4">
-          <Link href="/verificar" className="text-primary-600 hover:underline text-sm">
+          <Link href="/verificar" className="text-primary-600 dark:text-primary-400 hover:underline text-sm">
             &larr; Verificar outro documento
           </Link>
         </div>

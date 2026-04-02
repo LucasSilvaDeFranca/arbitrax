@@ -47,14 +47,14 @@ export default function ImpedimentoPage() {
       <div className="p-8">
         <div className="max-w-2xl mx-auto">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-primary-700">Declarar Impedimento</h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <h1 className="text-3xl font-bold text-primary-700 dark:text-white">Declarar Impedimento</h1>
+            <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">
               Declare impedimento ou suspeicao para o caso selecionado
             </p>
           </div>
 
           {sucesso ? (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
               <p className="text-green-700 font-semibold text-lg mb-2">
                 Impedimento declarado com sucesso
               </p>
@@ -69,10 +69,10 @@ export default function ImpedimentoPage() {
               </button>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow p-6">
+            <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="motivo" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="motivo" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Motivo do impedimento/suspeicao
                   </label>
                   <textarea
@@ -81,7 +81,7 @@ export default function ImpedimentoPage() {
                     value={motivo}
                     onChange={(e) => setMotivo(e.target.value)}
                     placeholder="Descreva detalhadamente o motivo pelo qual voce declara impedimento ou suspeicao para atuar neste caso..."
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
                     required
                   />
                 </div>
@@ -97,7 +97,7 @@ export default function ImpedimentoPage() {
                   <button
                     type="button"
                     onClick={() => router.push('/arbitro')}
-                    className="bg-gray-100 text-gray-600 rounded-lg px-6 py-2 text-sm font-medium hover:bg-gray-200"
+                    className="bg-gray-100 text-gray-600 rounded-lg px-6 py-2 text-sm font-medium hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   >
                     Cancelar
                   </button>

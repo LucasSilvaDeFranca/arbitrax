@@ -13,11 +13,11 @@ function formatStatus(s: string) {
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  RASCUNHO: 'bg-yellow-100 text-yellow-800',
-  EM_REVISAO: 'bg-blue-100 text-blue-800',
-  APROVADA: 'bg-green-100 text-green-800',
-  RATIFICADA: 'bg-emerald-100 text-emerald-800',
-  PUBLICADA: 'bg-purple-100 text-purple-800',
+  RASCUNHO: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  EM_REVISAO: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  APROVADA: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  RATIFICADA: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+  PUBLICADA: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
 };
 
 export default function SentencaPage() {
@@ -107,35 +107,35 @@ export default function SentencaPage() {
   };
 
   if (loading) {
-    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>;
+    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500 dark:text-slate-400">Carregando...</p></div></AuthLayout>;
   }
 
   return (
     <AuthLayout>
       <div className="p-8">
       <div className="max-w-4xl mx-auto">
-        <Link href={`/arbitragens/${id}`} className="text-primary-600 hover:underline text-sm mb-4 block">
+        <Link href={`/arbitragens/${id}`} className="text-primary-600 dark:text-primary-400 hover:underline text-sm mb-4 block">
           &larr; Voltar para o caso
         </Link>
 
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-primary-700">Sentenca Arbitral</h1>
+          <h1 className="text-3xl font-bold text-primary-700 dark:text-white">Sentenca Arbitral</h1>
           {sentenca && (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">v{sentenca.versao}</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_BADGE[sentenca.status] || 'bg-gray-100'}`}>
+              <span className="text-sm text-gray-500 dark:text-slate-400">v{sentenca.versao}</span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_BADGE[sentenca.status] || 'bg-gray-100 dark:bg-slate-700 dark:text-slate-200'}`}>
                 {formatStatus(sentenca.status)}
               </span>
             </div>
           )}
         </div>
 
-        {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">{error}</div>}
+        {error && <div className="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 p-3 rounded-lg mb-4 text-sm">{error}</div>}
 
         {!sentenca ? (
-          <div className="bg-white rounded-xl shadow p-8 text-center">
-            <p className="text-gray-500">Nenhuma sentenca gerada ainda.</p>
-            <p className="text-sm text-gray-400 mt-2">A IA gerara o projeto quando as provas forem suficientes.</p>
+          <div className="bg-white rounded-xl shadow p-8 text-center dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+            <p className="text-gray-500 dark:text-slate-400">Nenhuma sentenca gerada ainda.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500 mt-2">A IA gerara o projeto quando as provas forem suficientes.</p>
           </div>
         ) : (
           <>
@@ -144,7 +144,7 @@ export default function SentencaPage() {
               <button
                 onClick={() => setTab('sentenca')}
                 className={`px-4 py-2 rounded-lg font-medium transition ${
-                  tab === 'sentenca' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'
+                  tab === 'sentenca' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-200'
                 }`}
               >
                 Sentenca
@@ -152,7 +152,7 @@ export default function SentencaPage() {
               <button
                 onClick={() => setTab('versoes')}
                 className={`px-4 py-2 rounded-lg font-medium transition ${
-                  tab === 'versoes' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'
+                  tab === 'versoes' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-200'
                 }`}
               >
                 Versoes ({versoes.length})
@@ -162,39 +162,39 @@ export default function SentencaPage() {
             {tab === 'sentenca' && (
               <div className="space-y-6">
                 {/* Ementa */}
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Ementa</h3>
-                  <p className="text-gray-800 italic">{sentenca.conteudo.ementa}</p>
+                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Ementa</h3>
+                  <p className="text-gray-800 dark:text-slate-100 italic">{sentenca.conteudo.ementa}</p>
                 </div>
 
                 {/* Relatorio */}
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Relatorio</h3>
-                  <p className="text-gray-800 whitespace-pre-wrap">{sentenca.conteudo.relatorio}</p>
+                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Relatorio</h3>
+                  <p className="text-gray-800 dark:text-slate-100 whitespace-pre-wrap">{sentenca.conteudo.relatorio}</p>
                 </div>
 
                 {/* Fundamentacao */}
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Fundamentacao</h3>
-                  <p className="text-gray-800 whitespace-pre-wrap">{sentenca.conteudo.fundamentacao}</p>
+                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Fundamentacao</h3>
+                  <p className="text-gray-800 dark:text-slate-100 whitespace-pre-wrap">{sentenca.conteudo.fundamentacao}</p>
                 </div>
 
                 {/* Dispositivo */}
-                <div className="bg-white rounded-xl shadow p-6 border-l-4 border-primary-500">
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Dispositivo (Decisao)</h3>
-                  <p className="text-gray-800 font-medium whitespace-pre-wrap">{sentenca.conteudo.dispositivo}</p>
+                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none border-l-4 border-primary-500">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Dispositivo (Decisao)</h3>
+                  <p className="text-gray-800 dark:text-slate-100 font-medium whitespace-pre-wrap">{sentenca.conteudo.dispositivo}</p>
                 </div>
 
                 {/* Custas */}
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Custas</h3>
+                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Custas</h3>
                   <div className="flex gap-8">
                     <div>
-                      <span className="text-gray-500 text-sm">Requerente</span>
+                      <span className="text-gray-500 dark:text-slate-400 text-sm">Requerente</span>
                       <p className="font-bold text-lg">R$ {sentenca.conteudo.custas?.requerente?.toLocaleString('pt-BR') || '0'}</p>
                     </div>
                     <div>
-                      <span className="text-gray-500 text-sm">Requerido</span>
+                      <span className="text-gray-500 dark:text-slate-400 text-sm">Requerido</span>
                       <p className="font-bold text-lg">R$ {sentenca.conteudo.custas?.requerido?.toLocaleString('pt-BR') || '0'}</p>
                     </div>
                   </div>
@@ -202,7 +202,7 @@ export default function SentencaPage() {
 
                 {/* Codigo verificacao */}
                 {sentenca.codigoVerif && (
-                  <div className="bg-emerald-50 rounded-xl p-4 text-center">
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 text-center">
                     <p className="text-sm text-gray-500">Codigo de verificacao</p>
                     <p className="text-2xl font-mono font-bold text-emerald-700">{sentenca.codigoVerif}</p>
                   </div>
@@ -217,8 +217,8 @@ export default function SentencaPage() {
 
                 {/* Acoes do Arbitro */}
                 {isArbitro && (sentenca.status === 'RASCUNHO' || sentenca.status === 'EM_REVISAO') && (
-                  <div className="bg-white rounded-xl shadow p-6 border-t-4 border-indigo-500">
-                    <h3 className="font-semibold text-gray-800 mb-4">Acoes do Arbitro</h3>
+                  <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none border-t-4 border-indigo-500">
+                    <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-4">Acoes do Arbitro</h3>
                     <div className="flex gap-3 mb-4">
                       <button
                         onClick={handleAprovar}
@@ -234,7 +234,7 @@ export default function SentencaPage() {
                         value={sugestoes}
                         onChange={(e) => setSugestoes(e.target.value)}
                         placeholder="Escreva sugestoes de melhoria (min. 20 caracteres)..."
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
                       />
                       <button
                         onClick={handleSugerir}
@@ -248,9 +248,9 @@ export default function SentencaPage() {
                 )}
 
                 {isArbitro && sentenca.status === 'APROVADA' && (
-                  <div className="bg-white rounded-xl shadow p-6 border-t-4 border-emerald-500">
-                    <h3 className="font-semibold text-gray-800 mb-4">Ratificacao Final</h3>
-                    <p className="text-sm text-gray-500 mb-4">
+                  <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none border-t-4 border-emerald-500">
+                    <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-4">Ratificacao Final</h3>
+                    <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
                       Ao ratificar, a sentenca sera publicada e enviada as partes.
                     </p>
                     <button
@@ -265,14 +265,14 @@ export default function SentencaPage() {
 
                 {/* Assinatura Digital A1 */}
                 {isArbitro && sentenca.status === 'RATIFICADA' && !sentenca.assinadoDigitalmenteAt && (
-                  <div className="bg-white rounded-xl shadow p-6 border-t-4 border-blue-500">
-                    <h3 className="font-semibold text-gray-800 mb-4">Assinatura Digital A1</h3>
+                  <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none border-t-4 border-blue-500">
+                    <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-4">Assinatura Digital A1</h3>
                     {certStatus?.temCertificado && !certStatus.expirado ? (
                       <>
-                        <p className="text-sm text-gray-500 mb-2">
+                        <p className="text-sm text-gray-500 dark:text-slate-400 mb-2">
                           Assine esta sentenca com seu certificado digital ICP-Brasil.
                         </p>
-                        <p className="text-xs text-gray-400 mb-4">
+                        <p className="text-xs text-gray-400 dark:text-slate-500 dark:text-slate-500 mb-4">
                           Certificado: {certStatus.cn} | Validade: {certStatus.validade ? new Date(certStatus.validade).toLocaleDateString('pt-BR') : 'N/A'}
                         </p>
                         <button
@@ -303,7 +303,7 @@ export default function SentencaPage() {
 
                 {/* Sentenca Assinada Digitalmente */}
                 {sentenca.assinadoDigitalmenteAt && (
-                  <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,7 +338,7 @@ export default function SentencaPage() {
             {tab === 'versoes' && (
               <div className="space-y-3">
                 {versoes.map((v) => (
-                  <div key={v.id} className="bg-white rounded-xl shadow p-4">
+                  <div key={v.id} className="bg-white rounded-xl shadow p-4 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
                     <div className="flex justify-between items-center">
                       <div>
                         <span className="font-medium">Versao {v.versao}</span>
@@ -346,14 +346,14 @@ export default function SentencaPage() {
                           {formatStatus(v.status)}
                         </span>
                       </div>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 dark:text-slate-500">
                         {new Date(v.createdAt).toLocaleString('pt-BR')}
                       </span>
                     </div>
                     {v.aprovacoes.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {v.aprovacoes.map((a, i) => (
-                          <p key={i} className="text-xs text-gray-500">
+                          <p key={i} className="text-xs text-gray-500 dark:text-slate-400">
                             {a.arbitro.nome}: <span className="font-medium">{a.acao}</span> em {new Date(a.createdAt).toLocaleString('pt-BR')}
                           </p>
                         ))}

@@ -30,7 +30,7 @@ export default function AuditLogPage() {
     return (
       <AuthLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
-          <p className="text-gray-500">Carregando...</p>
+          <p className="text-gray-500 dark:text-slate-400">Carregando...</p>
         </div>
       </AuthLayout>
     );
@@ -41,28 +41,28 @@ export default function AuditLogPage() {
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-primary-700">Audit Log</h1>
-            <p className="text-gray-500 text-sm mt-1">Registro de acoes do sistema</p>
+            <h1 className="text-3xl font-bold text-primary-700 dark:text-white">Audit Log</h1>
+            <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Registro de acoes do sistema</p>
           </div>
 
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="bg-white rounded-xl shadow overflow-hidden dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acao</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entidade</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detalhes</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Data</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Usuario</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Acao</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Entidade</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Detalhes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-300">
                       {new Date(log.createdAt).toLocaleString('pt-BR')}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-800">
+                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-slate-100">
                       {log.user?.nome || log.userId}
                     </td>
                     <td className="px-4 py-3">
@@ -70,10 +70,10 @@ export default function AuditLogPage() {
                         {log.acao}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-300">
                       {log.entidade}
                       {log.entidadeId && (
-                        <span className="text-gray-400 text-xs ml-1">({log.entidadeId.substring(0, 8)}...)</span>
+                        <span className="text-gray-400 dark:text-slate-500 text-xs ml-1">({log.entidadeId.substring(0, 8)}...)</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500 font-mono max-w-xs truncate">
@@ -83,7 +83,7 @@ export default function AuditLogPage() {
                 ))}
                 {logs.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-slate-400">
                       Nenhum registro encontrado.
                     </td>
                   </tr>
@@ -98,17 +98,17 @@ export default function AuditLogPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="px-3 py-1 rounded border text-sm disabled:opacity-50"
+                className="px-3 py-1 rounded border text-sm disabled:opacity-50 dark:border-slate-600 dark:text-slate-300"
               >
                 Anterior
               </button>
-              <span className="px-3 py-1 text-sm text-gray-600">
+              <span className="px-3 py-1 text-sm text-gray-600 dark:text-slate-300">
                 Pagina {page} de {meta.totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
                 disabled={page >= meta.totalPages}
-                className="px-3 py-1 rounded border text-sm disabled:opacity-50"
+                className="px-3 py-1 rounded border text-sm disabled:opacity-50 dark:border-slate-600 dark:text-slate-300"
               >
                 Proxima
               </button>

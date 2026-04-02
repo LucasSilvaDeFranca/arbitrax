@@ -19,14 +19,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-400">Carregando...</p>
+      <div className="flex min-h-screen items-center justify-center dark:bg-[#0f172a]">
+        <p className="text-gray-400 dark:text-slate-500">Carregando...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0f172a]">
       <Sidebar />
       <main className="lg:ml-64 min-h-screen">
         {children}

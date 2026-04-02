@@ -48,7 +48,7 @@ export default function AdminPage() {
   };
 
   if (loading) {
-    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>;
+    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500 dark:text-slate-400">Carregando...</p></div></AuthLayout>;
   }
 
   return (
@@ -56,7 +56,7 @@ export default function AdminPage() {
       <div className="p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-primary-700">Painel Admin</h1>
+          <h1 className="text-3xl font-bold text-primary-700 dark:text-white">Painel Admin</h1>
         </div>
 
         {/* Tabs */}
@@ -66,7 +66,7 @@ export default function AdminPage() {
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-lg font-medium transition capitalize ${
-                tab === t ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                tab === t ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
               }`}
             >
               {t}
@@ -78,46 +78,46 @@ export default function AdminPage() {
         {tab === 'overview' && stats && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="bg-white rounded-xl shadow p-5">
-                <p className="text-sm text-gray-500">Total Casos</p>
+              <div className="bg-white rounded-xl shadow p-5 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Total Casos</p>
                 <p className="text-3xl font-bold text-primary-700">{stats.totalCasos}</p>
               </div>
-              <div className="bg-white rounded-xl shadow p-5">
-                <p className="text-sm text-gray-500">Ativos</p>
+              <div className="bg-white rounded-xl shadow p-5 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Ativos</p>
                 <p className="text-3xl font-bold text-blue-600">{stats.casosAtivos}</p>
               </div>
-              <div className="bg-white rounded-xl shadow p-5">
-                <p className="text-sm text-gray-500">Sentencas Pendentes</p>
+              <div className="bg-white rounded-xl shadow p-5 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Sentencas Pendentes</p>
                 <p className="text-3xl font-bold text-yellow-600">{stats.sentencasPendentes}</p>
               </div>
-              <div className="bg-white rounded-xl shadow p-5">
-                <p className="text-sm text-gray-500">Arbitros</p>
+              <div className="bg-white rounded-xl shadow p-5 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Arbitros</p>
                 <p className="text-3xl font-bold text-indigo-600">{stats.totalArbitros}</p>
               </div>
-              <div className="bg-white rounded-xl shadow p-5">
-                <p className="text-sm text-gray-500">Usuarios</p>
+              <div className="bg-white rounded-xl shadow p-5 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Usuarios</p>
                 <p className="text-3xl font-bold text-gray-600">{stats.totalUsuarios}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="font-semibold text-gray-800 mb-3">Casos por Status</h3>
+              <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-3">Casos por Status</h3>
                 <div className="space-y-2">
                   {stats.casosPorStatus.map((c) => (
                     <div key={c.status} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">{formatStatus(c.status)}</span>
+                      <span className="text-sm text-gray-600 dark:text-slate-300">{formatStatus(c.status)}</span>
                       <span className="font-bold">{c.count}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="font-semibold text-gray-800 mb-3">Casos por Categoria</h3>
+              <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-3">Casos por Categoria</h3>
                 <div className="space-y-2">
                   {stats.casosPorCategoria.map((c) => (
                     <div key={c.categoria} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">{formatStatus(c.categoria)}</span>
+                      <span className="text-sm text-gray-600 dark:text-slate-300">{formatStatus(c.categoria)}</span>
                       <span className="font-bold">{c.count}</span>
                     </div>
                   ))}
@@ -129,29 +129,29 @@ export default function AdminPage() {
 
         {/* Casos */}
         {tab === 'casos' && casos && (
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="bg-white rounded-xl shadow overflow-hidden dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Numero</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Partes</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Arbitro</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acao</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Numero</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Partes</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Arbitro</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Acao</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {casos.data.map((c: any) => (
-                  <tr key={c.id} className="hover:bg-gray-50">
+                  <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30">
                     <td className="px-4 py-3 text-sm font-mono">
-                      <Link href={`/arbitragens/${c.id}`} className="text-primary-600 hover:underline">
+                      <Link href={`/arbitragens/${c.id}`} className="text-primary-600 dark:text-primary-400 hover:underline">
                         {c.numero}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {c.requerente?.nome} vs {c.requerido?.nome}
                     </td>
-                    <td className="px-4 py-3 text-xs">{formatStatus(c.status)}</td>
+                    <td className="px-4 py-3 text-xs dark:text-slate-300">{formatStatus(c.status)}</td>
                     <td className="px-4 py-3 text-sm">
                       {c.arbitros?.length ? c.arbitros.map((a: any) => a.arbitro.nome).join(', ') : (
                         <span className="text-orange-500">Nenhum</span>
@@ -161,7 +161,7 @@ export default function AdminPage() {
                       {!c.arbitros?.length && arbitros.length > 0 && (
                         <select
                           onChange={(e) => e.target.value && handleDesignar(c.id, e.target.value)}
-                          className="text-xs border rounded px-2 py-1"
+                          className="text-xs border rounded px-2 py-1 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                           defaultValue=""
                         >
                           <option value="">Designar...</option>
@@ -182,8 +182,8 @@ export default function AdminPage() {
         {tab === 'arbitros' && (
           <div className="space-y-6">
           {/* Form de cadastro */}
-          <div className="bg-white rounded-xl shadow p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">Cadastrar Novo Arbitro</h3>
+          <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+            <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-4">Cadastrar Novo Arbitro</h3>
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -208,7 +208,7 @@ export default function AdminPage() {
                 placeholder="Nome completo"
                 value={novoArbitro.nome}
                 onChange={(e) => setNovoArbitro({ ...novoArbitro, nome: e.target.value })}
-                className="border rounded-lg px-3 py-2 text-sm"
+                className="border rounded-lg px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
                 required
               />
               <input
@@ -216,7 +216,7 @@ export default function AdminPage() {
                 placeholder="CPF/CNPJ"
                 value={novoArbitro.cpfCnpj}
                 onChange={(e) => setNovoArbitro({ ...novoArbitro, cpfCnpj: e.target.value })}
-                className="border rounded-lg px-3 py-2 text-sm"
+                className="border rounded-lg px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
                 required
               />
               <input
@@ -224,7 +224,7 @@ export default function AdminPage() {
                 placeholder="Email"
                 value={novoArbitro.email}
                 onChange={(e) => setNovoArbitro({ ...novoArbitro, email: e.target.value })}
-                className="border rounded-lg px-3 py-2 text-sm"
+                className="border rounded-lg px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
                 required
               />
               <input
@@ -232,7 +232,7 @@ export default function AdminPage() {
                 placeholder="Telefone"
                 value={novoArbitro.telefone}
                 onChange={(e) => setNovoArbitro({ ...novoArbitro, telefone: e.target.value })}
-                className="border rounded-lg px-3 py-2 text-sm"
+                className="border rounded-lg px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
                 required
               />
               <input
@@ -240,7 +240,7 @@ export default function AdminPage() {
                 placeholder="OAB (opcional)"
                 value={novoArbitro.oabNumero}
                 onChange={(e) => setNovoArbitro({ ...novoArbitro, oabNumero: e.target.value })}
-                className="border rounded-lg px-3 py-2 text-sm"
+                className="border rounded-lg px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
               />
               <button
                 type="submit"
@@ -254,10 +254,10 @@ export default function AdminPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {arbitros.map((a) => (
-              <div key={a.id} className="bg-white rounded-xl shadow p-5">
-                <h3 className="font-semibold text-gray-800">{a.nome}</h3>
-                <p className="text-sm text-gray-500">{a.email}</p>
-                {a.oabNumero && <p className="text-sm text-gray-400">{a.oabNumero}</p>}
+              <div key={a.id} className="bg-white rounded-xl shadow p-5 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                <h3 className="font-semibold text-gray-800 dark:text-slate-100">{a.nome}</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">{a.email}</p>
+                {a.oabNumero && <p className="text-sm text-gray-400 dark:text-slate-500">{a.oabNumero}</p>}
                 <div className="mt-3 flex items-center gap-2">
                   <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
                     {a.casosAtivos} casos ativos

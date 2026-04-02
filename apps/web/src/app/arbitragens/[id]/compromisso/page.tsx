@@ -22,9 +22,9 @@ interface Compromisso {
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800' },
-  enviado: { label: 'Enviado para assinatura', color: 'bg-blue-100 text-blue-800' },
-  assinado: { label: 'Assinado por ambas partes', color: 'bg-green-100 text-green-800' },
+  pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' },
+  enviado: { label: 'Enviado para assinatura', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+  assinado: { label: 'Assinado por ambas partes', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
 };
 
 export default function CompromissoPage() {
@@ -68,30 +68,30 @@ export default function CompromissoPage() {
   };
 
   if (loading) {
-    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>;
+    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500 dark:text-slate-400">Carregando...</p></div></AuthLayout>;
   }
 
   return (
     <AuthLayout>
       <div className="p-8">
       <div className="max-w-3xl mx-auto">
-        <Link href={`/arbitragens/${id}`} className="text-primary-600 hover:underline text-sm mb-4 block">
+        <Link href={`/arbitragens/${id}`} className="text-primary-600 dark:text-primary-400 hover:underline text-sm mb-4 block">
           &larr; Voltar para o caso
         </Link>
 
-        <h1 className="text-3xl font-bold text-primary-700 mb-6">Compromisso Arbitral</h1>
+        <h1 className="text-3xl font-bold text-primary-700 dark:text-white mb-6">Compromisso Arbitral</h1>
 
         {notFound ? (
-          <div className="bg-white rounded-xl shadow p-8 text-center">
-            <p className="text-gray-500 mb-4">Compromisso ainda nao gerado para este caso.</p>
-            <p className="text-sm text-gray-400">O administrador ira gerar o termo quando o caso estiver pronto.</p>
+          <div className="bg-white rounded-xl shadow p-8 text-center dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+            <p className="text-gray-500 dark:text-slate-400 mb-4">Compromisso ainda nao gerado para este caso.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">O administrador ira gerar o termo quando o caso estiver pronto.</p>
           </div>
         ) : compromisso && (
           <div className="space-y-6">
             {/* Status */}
-            <div className="bg-white rounded-xl shadow p-6">
+            <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
               <div className="flex justify-between items-center">
-                <h2 className="font-semibold text-gray-800">Status</h2>
+                <h2 className="font-semibold text-gray-800 dark:text-slate-100">Status</h2>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                   STATUS_MAP[compromisso.status]?.color || 'bg-gray-100'
                 }`}>
@@ -108,14 +108,14 @@ export default function CompromissoPage() {
 
             {/* Signatarios (ZapSign) */}
             {compromisso.signatarios && compromisso.signatarios.length > 0 && (
-              <div className="bg-white rounded-xl shadow p-6">
-                <h2 className="font-semibold text-gray-800 mb-4">Assinaturas</h2>
+              <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+                <h2 className="font-semibold text-gray-800 dark:text-slate-100 mb-4">Assinaturas</h2>
                 <div className="space-y-3">
                   {compromisso.signatarios.map((s, i) => (
-                    <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-800/30 rounded-lg">
                       <div>
                         <p className="font-medium">{s.nome}</p>
-                        <p className="text-sm text-gray-500">{s.email}</p>
+                        <p className="text-sm text-gray-500 dark:text-slate-400">{s.email}</p>
                       </div>
                       <div className="text-right">
                         {s.status === 'signed' ? (
@@ -141,14 +141,14 @@ export default function CompromissoPage() {
 
             {/* Aceite interno (fallback sem ZapSign) */}
             {compromisso.status === 'pendente' && !compromisso.signatarios?.length && (
-              <div className="bg-white rounded-xl shadow p-6 border-t-4 border-primary-500">
-                <h2 className="font-semibold text-gray-800 mb-2">Aceite Digital</h2>
-                <p className="text-sm text-gray-500 mb-4">
+              <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none border-t-4 border-primary-500">
+                <h2 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Aceite Digital</h2>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
                   Ao clicar em "Aceitar e Assinar", voce concorda com todos os termos do Compromisso Arbitral
                   conforme a Lei 9.307/96.
                 </p>
 
-                <div className="bg-gray-50 rounded-lg p-4 mb-4 text-sm text-gray-600">
+                <div className="bg-gray-50 dark:bg-slate-800/30 rounded-lg p-4 mb-4 text-sm text-gray-600 dark:text-slate-300">
                   <p className="font-medium mb-2">Resumo dos termos:</p>
                   <ul className="list-disc pl-5 space-y-1">
                     <li>Arbitragem como meio exclusivo de resolucao</li>
@@ -169,7 +169,7 @@ export default function CompromissoPage() {
             )}
 
             {compromisso.status === 'assinado' && (
-              <div className="bg-green-50 rounded-xl p-6 text-center">
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6 text-center">
                 <p className="text-green-700 font-semibold text-lg">Compromisso assinado por ambas as partes</p>
                 <p className="text-sm text-green-600 mt-1">O caso esta em andamento.</p>
               </div>

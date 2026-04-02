@@ -1,3 +1,22 @@
 @tailwind base;
+
+@layer base {
+  :root {
+    --bg-page: #f9fafb;
+    --bg-card: #ffffff;
+    --border-card: #e5e7eb;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+  }
+
+  .dark {
+    --bg-page: #0f172a;
+    --bg-card: rgba(30, 41, 59, 0.5);
+    --border-card: rgba(51, 65, 85, 0.5);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+  }
+}
+
 @tailwind components;
 @tailwind utilities;

@@ -29,9 +29,6 @@ export default function CertificadoDigitalPage() {
   const token = getToken();
   const user = getUser();
 
-  const rolesPermitidas = ['ARBITRO', 'ADVOGADO', 'ADMIN'];
-  const temPermissao = user && rolesPermitidas.includes(user.role);
-
   const loadStatus = async () => {
     if (!token) { router.push('/login'); return; }
     try {
@@ -99,23 +96,7 @@ export default function CertificadoDigitalPage() {
 
   if (loading) {
     return (
-      <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500">Carregando...</p></div></AuthLayout>
-    );
-  }
-
-  if (!temPermissao) {
-    return (
-      <AuthLayout>
-        <div className="p-8">
-        <div className="max-w-2xl mx-auto text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Acesso Restrito</h1>
-          <p className="text-gray-500">Apenas Arbitros, Advogados e Administradores podem gerenciar certificados digitais.</p>
-          <Link href="/dashboard" className="text-primary-600 hover:underline mt-4 inline-block">
-            Voltar ao Dashboard
-          </Link>
-        </div>
-        </div>
-      </AuthLayout>
+      <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500 dark:text-slate-400">Carregando...</p></div></AuthLayout>
     );
   }
 
@@ -123,31 +104,31 @@ export default function CertificadoDigitalPage() {
     <AuthLayout>
       <div className="p-8">
       <div className="max-w-2xl mx-auto">
-        <Link href="/dashboard" className="text-primary-600 hover:underline text-sm mb-4 block">
+        <Link href="/dashboard" className="text-primary-600 dark:text-primary-400 hover:underline text-sm mb-4 block">
           &larr; Voltar ao Dashboard
         </Link>
 
-        <h1 className="text-3xl font-bold text-primary-700 mb-2">Certificado Digital A1</h1>
-        <p className="text-gray-500 mb-8">
+        <h1 className="text-3xl font-bold text-primary-700 dark:text-white mb-2">Assinatura Digital</h1>
+        <p className="text-gray-500 dark:text-slate-400 mb-8">
           Configure seu certificado ICP-Brasil para assinar documentos digitalmente.
         </p>
 
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
+          <div className="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 p-3 rounded-lg mb-4 text-sm">
             {error}
           </div>
         )}
         {success && (
-          <div className="bg-green-50 text-green-600 p-3 rounded-lg mb-4 text-sm">
+          <div className="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 p-3 rounded-lg mb-4 text-sm">
             {success}
           </div>
         )}
 
         {/* Status do Certificado */}
         {status?.temCertificado ? (
-          <div className="bg-white rounded-xl shadow p-6 mb-6">
+          <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none mb-6">
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Certificado Configurado</h2>
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100">Certificado Configurado</h2>
               <span
                 className={`px-3 py-1 rounded-full text-xs font-medium ${
                   status.expirado
@@ -165,31 +146,31 @@ export default function CertificadoDigitalPage() {
 
             <div className="space-y-3">
               <div>
-                <span className="text-sm text-gray-500">Titular (CN)</span>
-                <p className="font-medium text-gray-800">{status.cn}</p>
+                <span className="text-sm text-gray-500 dark:text-slate-400">Titular (CN)</span>
+                <p className="font-medium text-gray-800 dark:text-slate-100">{status.cn}</p>
               </div>
               <div>
-                <span className="text-sm text-gray-500">Autoridade Certificadora</span>
-                <p className="font-medium text-gray-800">{status.emissor}</p>
+                <span className="text-sm text-gray-500 dark:text-slate-400">Autoridade Certificadora</span>
+                <p className="font-medium text-gray-800 dark:text-slate-100">{status.emissor}</p>
               </div>
               <div className="flex gap-8">
                 <div>
-                  <span className="text-sm text-gray-500">Validade</span>
-                  <p className="font-medium text-gray-800">
+                  <span className="text-sm text-gray-500 dark:text-slate-400">Validade</span>
+                  <p className="font-medium text-gray-800 dark:text-slate-100">
                     {status.validade
                       ? new Date(status.validade).toLocaleDateString('pt-BR')
                       : 'N/A'}
                   </p>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-500">Serial</span>
-                  <p className="font-mono text-sm text-gray-600">
+                  <span className="text-sm text-gray-500 dark:text-slate-400">Serial</span>
+                  <p className="font-mono text-sm text-gray-600 dark:text-slate-300">
                     {status.serial ? status.serial.substring(0, 20) + '...' : 'N/A'}
                   </p>
                 </div>
               </div>
               {status.atualizadoEm && (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 dark:text-slate-500">
                   Configurado em: {new Date(status.atualizadoEm).toLocaleString('pt-BR')}
                 </p>
               )}
@@ -207,7 +188,7 @@ export default function CertificadoDigitalPage() {
               {!confirmRemover ? (
                 <button
                   onClick={() => setConfirmRemover(true)}
-                  className="px-4 py-2 bg-gray-100 text-red-600 rounded-lg hover:bg-red-50 transition text-sm"
+                  className="px-4 py-2 bg-gray-100 text-red-600 rounded-lg hover:bg-red-50 dark:bg-slate-700 dark:text-red-400 dark:hover:bg-red-900/20 transition text-sm"
                 >
                   Remover Certificado
                 </button>
@@ -222,7 +203,7 @@ export default function CertificadoDigitalPage() {
                   </button>
                   <button
                     onClick={() => setConfirmRemover(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition text-sm"
+                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition text-sm"
                   >
                     Cancelar
                   </button>
@@ -231,23 +212,23 @@ export default function CertificadoDigitalPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2">Nenhum Certificado Configurado</h2>
-            <p className="text-sm text-gray-500 mb-4">
+          <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100 mb-2">Nenhum Certificado Configurado</h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
               Faca upload do seu certificado A1 (.pfx ou .p12) para assinar documentos digitalmente.
             </p>
           </div>
         )}
 
         {/* Upload Form */}
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+        <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100 mb-4">
             {status?.temCertificado ? 'Atualizar Certificado' : 'Enviar Certificado'}
           </h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Arquivo do Certificado (.pfx / .p12)
               </label>
               <input
@@ -255,12 +236,12 @@ export default function CertificadoDigitalPage() {
                 type="file"
                 accept=".pfx,.p12"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm file:mr-4 file:py-1 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 file:mr-4 file:py-1 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/30 dark:file:text-primary-300"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Senha do Certificado
               </label>
               <input
@@ -268,7 +249,7 @@ export default function CertificadoDigitalPage() {
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
                 placeholder="Digite a senha do arquivo PFX"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
               />
             </div>
 
@@ -281,8 +262,8 @@ export default function CertificadoDigitalPage() {
             </button>
           </div>
 
-          <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
-            <p className="text-xs text-yellow-700">
+          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <p className="text-xs text-yellow-700 dark:text-yellow-300">
               <strong>Seguranca:</strong> A senha do certificado e criptografada com AES-256-GCM antes de ser armazenada.
               O arquivo PFX e processado exclusivamente no servidor. Nenhum dado sensivel fica armazenado no navegador.
             </p>
