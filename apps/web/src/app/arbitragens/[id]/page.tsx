@@ -165,17 +165,24 @@ export default function ArbitragemDetailPage() {
           </Link>
         </div>
 
-        {/* Acoes por role */}
+        {/* Acoes contextuais por role e status */}
         {(() => {
           const user = getUser();
-          const isAdmin = user?.role === 'ADMIN';
-          const isRequerido = user?.role === 'REQUERIDO' && arb.requerido?.id === user?.id;
+          const role = user?.role;
+          const isAdmin = role === 'ADMIN';
+          const isRequerido = role === 'REQUERIDO' && arb.requerido?.id === user?.id;
+          const isRequerente = role === 'REQUERENTE' && arb.requerente?.id === user?.id;
+          const isAdvogado = role === 'ADVOGADO';
+          const isArbitro = role === 'ARBITRO';
+          const status = arb.status as string;
+
+          const actionCardBase = 'bg-white rounded-xl shadow p-5 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none mb-4 border-l-4';
 
           return (
-            <>
+            <div className="mb-6 space-y-0">
               {/* Admin: transicoes de estado */}
               {isAdmin && arb.allowedTransitions?.length > 0 && (
-                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none mb-6">
+                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none mb-4">
                   <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-3">Acoes Admin</h3>
                   <div className="flex flex-wrap gap-2">
                     {arb.allowedTransitions.map((t: string) => (
@@ -196,9 +203,9 @@ export default function ArbitragemDetailPage() {
                 </div>
               )}
 
-              {/* Requerido: aceitar ou recusar */}
-              {isRequerido && arb.status === 'AGUARDANDO_ACEITE' && (
-                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none mb-6 border-t-4 border-blue-500">
+              {/* Requerido: aceitar ou recusar (existing) */}
+              {isRequerido && status === 'AGUARDANDO_ACEITE' && (
+                <div className={`${actionCardBase} border-blue-500`}>
                   <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-3">Convite de Arbitragem</h3>
                   <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">Voce foi convidado para participar desta arbitragem.</p>
                   <div className="flex gap-3">
@@ -219,7 +226,139 @@ export default function ArbitragemDetailPage() {
                   </div>
                 </div>
               )}
-            </>
+
+              {/* Requerido: assinar compromisso */}
+              {isRequerido && status === 'AGUARDANDO_ASSINATURA' && (
+                <div className={`${actionCardBase} border-yellow-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Assinar Compromisso Arbitral</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">O compromisso arbitral esta pronto para sua assinatura.</p>
+                  <Link href={`/arbitragens/${id}/compromisso`} className="inline-block px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm">
+                    Assinar Compromisso
+                  </Link>
+                </div>
+              )}
+
+              {/* Requerido: enviar contestacao */}
+              {isRequerido && status === 'AGUARDANDO_CONTESTACAO' && (
+                <div className={`${actionCardBase} border-yellow-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Enviar Contestacao</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">Voce tem prazo para enviar sua contestacao.</p>
+                  <Link href={`/arbitragens/${id}/documentos`} className="inline-block px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm">
+                    Enviar Contestacao
+                  </Link>
+                </div>
+              )}
+
+              {/* Requerido: sentenca disponivel */}
+              {isRequerido && (status === 'SENTENCA_RATIFICADA' || status === 'ENCERRADA') && (
+                <div className={`${actionCardBase} border-green-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Sentenca Disponivel</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">A sentenca deste caso esta disponivel para consulta.</p>
+                  <div className="flex gap-2">
+                    <Link href={`/arbitragens/${id}/sentenca`} className="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                      Ver Sentenca
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Requerente: aguardando pagamento */}
+              {isRequerente && status === 'AGUARDANDO_PAGAMENTO_REGISTRO' && (
+                <div className={`${actionCardBase} border-blue-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Aguardando Pagamento do Registro</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">O pagamento da taxa de registro e necessario para prosseguir com a arbitragem.</p>
+                </div>
+              )}
+
+              {/* Requerente: enviar peticao inicial */}
+              {isRequerente && (status === 'EM_INSTRUCAO' || status === 'AGUARDANDO_PETICAO') && (
+                <div className={`${actionCardBase} border-indigo-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Enviar Peticao Inicial</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">Protocole sua peticao inicial para dar andamento ao caso.</p>
+                  <Link href={`/arbitragens/${id}/documentos`} className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
+                    Ir para Documentos
+                  </Link>
+                </div>
+              )}
+
+              {/* Requerente: enviar provas adicionais */}
+              {isRequerente && status === 'AGUARDANDO_PROVAS_ADICIONAIS' && (
+                <div className={`${actionCardBase} border-yellow-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Enviar Provas Adicionais</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">O arbitro solicitou provas adicionais para este caso.</p>
+                  <Link href={`/arbitragens/${id}/documentos`} className="inline-block px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm">
+                    Enviar Provas
+                  </Link>
+                </div>
+              )}
+
+              {/* Requerente: sentenca disponivel */}
+              {isRequerente && (status === 'SENTENCA_RATIFICADA' || status === 'ENCERRADA') && (
+                <div className={`${actionCardBase} border-green-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Sentenca Disponivel</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">A sentenca deste caso esta disponivel para consulta e download.</p>
+                  <div className="flex gap-2">
+                    <Link href={`/arbitragens/${id}/sentenca`} className="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                      Ver Sentenca
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Advogado: info de representacao */}
+              {isAdvogado && (
+                <div className={`${actionCardBase} border-purple-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-1">Representacao</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                    Voce representa: <span className="font-medium text-gray-700 dark:text-slate-200">{arb.requerente?.nome || arb.requerido?.nome || 'Cliente'}</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Advogado: protocolar em nome do cliente */}
+              {isAdvogado && (status === 'EM_INSTRUCAO' || status === 'AGUARDANDO_PETICAO' || status === 'AGUARDANDO_CONTESTACAO') && (
+                <div className={`${actionCardBase} border-indigo-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Protocolar em Nome do Cliente</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">Submeta documentos e pecas processuais representando seu cliente.</p>
+                  <Link href={`/arbitragens/${id}/documentos`} className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
+                    Ir para Documentos
+                  </Link>
+                </div>
+              )}
+
+              {/* Arbitro: sentenca aguardando revisao */}
+              {isArbitro && (status === 'SENTENCA_EM_REVISAO' || status === 'GERANDO_SENTENCA') && (
+                <div className={`${actionCardBase} border-yellow-500`}>
+                  <h3 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Sentenca Aguardando sua Revisao</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">Ha uma sentenca pendente de revisao neste caso.</p>
+                  <Link href={`/arbitragens/${id}/sentenca`} className="inline-block px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm">
+                    Revisar Sentenca
+                  </Link>
+                </div>
+              )}
+
+              {/* Arbitro: ratificar sentenca */}
+              {isArbitro && status === 'SENTENCA_APROVADA' && (
+                <div className={`${actionCardBase} border-green-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Ratificar Sentenca</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">A sentenca foi aprovada e esta pronta para ratificacao.</p>
+                  <Link href={`/arbitragens/${id}/sentenca`} className="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                    Ratificar Sentenca
+                  </Link>
+                </div>
+              )}
+
+              {/* Arbitro: declarar impedimento (always visible) */}
+              {isArbitro && (
+                <div className={`${actionCardBase} border-red-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-1">Impedimento</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">Caso identifique conflito de interesse ou impedimento, declare aqui.</p>
+                  <button className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 transition text-sm font-medium">
+                    Declarar Impedimento
+                  </button>
+                </div>
+              )}
+            </div>
           );
         })()}
 

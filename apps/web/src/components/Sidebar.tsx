@@ -27,18 +27,69 @@ interface NavItem {
   label: string;
   icon: string;
   roles?: string[];
+  separator?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/arbitragens', label: 'Arbitragens', icon: '⚖' },
-  { href: '/arbitragens/nova', label: 'Nova Arbitragem', icon: '➕', roles: ['REQUERENTE', 'ADVOGADO', 'ADMIN'] },
-  { href: '/arbitro', label: 'Meus Casos', icon: '⚖', roles: ['ARBITRO'] },
-  { href: '/notificacoes', label: 'Notificacoes', icon: '🔔' },
-  { href: '/certificado-digital', label: 'Assinatura Digital', icon: '🔐' },
-  { href: '/admin', label: 'Painel Admin', icon: '🛡', roles: ['ADMIN'] },
-  { href: '/admin/audit', label: 'Audit Log', icon: '📋', roles: ['ADMIN'] },
-];
+function getNavItems(role: string): NavItem[] {
+  const items: NavItem[] = [
+    { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+  ];
+
+  switch (role) {
+    case 'REQUERENTE':
+      items.push(
+        { href: '/arbitragens', label: 'Meus Casos', icon: '⚖' },
+        { href: '/arbitragens/nova', label: 'Nova Arbitragem', icon: '➕' },
+      );
+      break;
+    case 'REQUERIDO':
+      items.push(
+        { href: '/arbitragens', label: 'Meus Casos', icon: '⚖' },
+      );
+      break;
+    case 'ADVOGADO':
+      items.push(
+        { href: '/arbitragens', label: 'Casos dos Clientes', icon: '⚖' },
+        { href: '/arbitragens/nova', label: 'Nova Arb. para Cliente', icon: '➕' },
+      );
+      break;
+    case 'ARBITRO':
+      items.push(
+        { href: '/arbitragens', label: 'Arbitragens', icon: '⚖' },
+        { href: '/arbitro', label: 'Meus Casos', icon: '⚖' },
+      );
+      break;
+    case 'ADMIN':
+      items.push(
+        { href: '/arbitragens', label: 'Arbitragens', icon: '⚖' },
+        { href: '/arbitragens/nova', label: 'Nova Arbitragem', icon: '➕' },
+      );
+      break;
+    default:
+      items.push(
+        { href: '/arbitragens', label: 'Arbitragens', icon: '⚖' },
+      );
+      break;
+  }
+
+  items.push(
+    { href: '/notificacoes', label: 'Notificacoes', icon: '🔔' },
+    { href: '/certificado-digital', label: 'Assinatura Digital', icon: '🔐' },
+  );
+
+  if (role === 'ARBITRO') {
+    items.push({ href: '', label: '', icon: '', separator: true });
+  }
+
+  if (role === 'ADMIN') {
+    items.push(
+      { href: '/admin', label: 'Painel Admin', icon: '🛡' },
+      { href: '/admin/audit', label: 'Audit Log', icon: '📋' },
+    );
+  }
+
+  return items;
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -52,9 +103,7 @@ export default function Sidebar() {
 
   if (!user) return null;
 
-  const filteredNav = NAV_ITEMS.filter(
-    (item) => !item.roles || item.roles.includes(user.role),
-  );
+  const filteredNav = getNavItems(user.role);
 
   const initials = user.nome
     ?.split(' ')
@@ -123,7 +172,14 @@ export default function Sidebar() {
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-3">
             <ul className="space-y-1">
-              {filteredNav.map((item) => {
+              {filteredNav.map((item, idx) => {
+                if (item.separator) {
+                  return (
+                    <li key={`sep-${idx}`} className="my-2">
+                      <hr className="border-gray-200 dark:border-slate-700" />
+                    </li>
+                  );
+                }
                 const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
                 return (
                   <li key={item.href}>
