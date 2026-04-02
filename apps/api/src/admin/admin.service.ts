@@ -186,20 +186,22 @@ export class AdminService {
       data: { status: 'impedido' },
     });
 
-    // Notificar admin
-    const admins = await this.prisma.user.findMany({ where: { role: 'ADMIN' } });
-    const arb = await this.prisma.arbitragem.findUnique({ where: { id: arbitragemId } });
-    const arbitro = await this.prisma.user.findUnique({ where: { id: arbitroId } });
+    // Notificar admins em batch
+    const [admins, arb, arbitro] = await Promise.all([
+      this.prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } }),
+      this.prisma.arbitragem.findUnique({ where: { id: arbitragemId }, select: { numero: true } }),
+      this.prisma.user.findUnique({ where: { id: arbitroId }, select: { nome: true } }),
+    ]);
 
-    for (const admin of admins) {
-      await this.prisma.notificacao.create({
-        data: {
+    if (admins.length > 0) {
+      await this.prisma.notificacao.createMany({
+        data: admins.map((admin) => ({
           userId: admin.id,
           titulo: 'Impedimento declarado',
-          mensagem: `Arbitro ${arbitro?.nome} declarou impedimento no caso ${arb?.numero}. Motivo: ${motivo}`,
+          mensagem: `Arbitro ${arbitro?.nome || 'Desconhecido'} declarou impedimento no caso ${arb?.numero || arbitragemId}. Motivo: ${motivo}`,
           tipo: 'sistema',
           link: `/arbitragens/${arbitragemId}`,
-        },
+        })),
       });
     }
 

@@ -95,10 +95,10 @@ export class SentencaService {
 
     if (!sentenca) throw new NotFoundException('Nenhuma sentenca encontrada');
 
-    return {
-      ...sentenca,
-      conteudo: JSON.parse(sentenca.conteudoTexto),
-    };
+    let conteudo = {};
+    try { conteudo = JSON.parse(sentenca.conteudoTexto); } catch { /* malformed */ }
+
+    return { ...sentenca, conteudo };
   }
 
   /** Listar versoes */
@@ -185,7 +185,8 @@ export class SentencaService {
     });
 
     // IA refina com base nas sugestoes
-    const sentencaAtual = JSON.parse(sentenca.conteudoTexto);
+    let sentencaAtual: any = {};
+    try { sentencaAtual = JSON.parse(sentenca.conteudoTexto); } catch { /* malformed */ }
     const refinada = await this.iaService.refinarSentenca(sentencaAtual, sugestoes);
 
     const conteudoTexto = JSON.stringify(refinada);
@@ -269,7 +270,7 @@ export class SentencaService {
       numero: arb.numero,
       sentencaId: sentenca.id,
       requerenteId: arb.requerenteId,
-      requeridoId: arb.requeridoId!,
+      requeridoId: arb.requeridoId || '',
       codigoVerif,
     });
 

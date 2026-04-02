@@ -85,7 +85,8 @@ export class PdfController {
 
     if (!sentenca) throw new NotFoundException('Sentenca nao encontrada');
 
-    const conteudo = JSON.parse(sentenca.conteudoTexto);
+    let conteudo: any = {};
+    try { conteudo = JSON.parse(sentenca.conteudoTexto); } catch { /* malformed */ }
 
     const { buffer } = await this.pdfService.gerarSentencaPdf({
       numero: arb.numero,
