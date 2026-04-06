@@ -115,7 +115,7 @@ export class ArbitragensService {
         regraEquidade: dto.regraEquidade ?? false,
         regraCostumes: dto.regraCostumes ?? false,
         modoArbitro: dto.modoArbitro,
-        status: 'AGUARDANDO_PAGAMENTO_REGISTRO',
+        status: 'AGUARDANDO_ACEITE',
       },
       include: {
         requerente: { select: { id: true, nome: true, email: true } },
@@ -288,6 +288,11 @@ export class ArbitragensService {
       if (!hasAccess) {
         throw new ForbiddenException('Sem acesso a esta arbitragem');
       }
+    }
+
+    // Admin manual status change: only CANCELADA is allowed
+    if (userRole === 'ADMIN' && newStatus !== 'CANCELADA') {
+      throw new ForbiddenException('Apenas cancelamento permitido');
     }
 
     // Validar transicao de estado

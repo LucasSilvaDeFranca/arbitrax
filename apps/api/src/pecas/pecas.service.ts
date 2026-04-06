@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { EventsService } from '../events/events.service';
 import { CreatePecaDto } from './dto/create-peca.dto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class PecasService {
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
+    private events: EventsService,
   ) {}
 
   async create(
@@ -69,6 +71,15 @@ export class PecasService {
         entidadeId: peca.id,
         dadosDepois: { tipo: dto.tipo, arbitragemId },
       },
+    });
+
+    // Emit peca protocolada event
+    this.events.emitPecaProtocolada({
+      arbitragemId,
+      numero: arbitragem.numero,
+      pecaId: peca.id,
+      tipo: dto.tipo,
+      autorId: userId,
     });
 
     return peca;

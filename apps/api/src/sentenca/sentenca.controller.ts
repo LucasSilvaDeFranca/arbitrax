@@ -21,13 +21,6 @@ import { Roles } from '../common/decorators/roles.decorator';
 export class SentencaController {
   constructor(private sentencaService: SentencaService) {}
 
-  @Post('sentenca/gerar')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Acionar IA para gerar projeto de sentenca' })
-  gerar(@Param('arbitragemId') arbitragemId: string) {
-    return this.sentencaService.gerar(arbitragemId);
-  }
-
   @Get('sentenca')
   @ApiOperation({ summary: 'Consultar sentenca atual' })
   getCurrent(@Param('arbitragemId') arbitragemId: string, @Request() req: any) {
@@ -66,13 +59,6 @@ export class SentencaController {
     return this.sentencaService.ratificar(arbitragemId, req.user.sub);
   }
 
-  @Post('sentenca/publicar')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Publicar sentenca e encerrar arbitragem' })
-  publicar(@Param('arbitragemId') arbitragemId: string, @Request() req: any) {
-    return this.sentencaService.publicar(arbitragemId, req.user.sub);
-  }
-
   @Post('sentenca/assinar-digital')
   @Roles('ARBITRO')
   @ApiOperation({ summary: 'Assinar sentenca digitalmente com certificado A1 ICP-Brasil' })
@@ -80,10 +66,4 @@ export class SentencaController {
     return this.sentencaService.assinarDigital(arbitragemId, req.user.sub);
   }
 
-  @Post('ia/analisar-provas')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'IA analisa suficiencia de provas' })
-  analisarProvas(@Param('arbitragemId') arbitragemId: string) {
-    return this.sentencaService.analisarProvas(arbitragemId);
-  }
 }

@@ -180,26 +180,27 @@ export default function ArbitragemDetailPage() {
 
           return (
             <div className="mb-6 space-y-0">
-              {/* Admin: transicoes de estado */}
-              {isAdmin && arb.allowedTransitions?.length > 0 && (
+              {/* Admin: read-only status + cancel button only */}
+              {isAdmin && (
                 <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none mb-4">
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-3">Acoes Admin</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {arb.allowedTransitions.map((t: string) => (
-                      <button
-                        key={t}
-                        onClick={() => handleTransition(t)}
-                        disabled={transitioning}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 ${
-                          t === 'CANCELADA'
-                            ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30'
-                            : 'bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/40'
-                        }`}
-                      >
-                        {formatStatus(t)}
-                      </button>
-                    ))}
-                  </div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-3">Admin - Visualizacao</h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-300 mb-3">
+                    Status atual: <span className="font-semibold">{formatStatus(status)}</span>
+                    {' '}(fluxo automatizado)
+                  </p>
+                  {status !== 'ENCERRADA' && status !== 'CANCELADA' && status !== 'RECUSADA' && (
+                    <button
+                      onClick={() => {
+                        if (confirm('Tem certeza que deseja CANCELAR este caso? Esta acao e irreversivel.')) {
+                          handleTransition('CANCELADA');
+                        }
+                      }}
+                      disabled={transitioning}
+                      className="px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
+                    >
+                      Cancelar Caso
+                    </button>
+                  )}
                 </div>
               )}
 
