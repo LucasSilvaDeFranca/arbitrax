@@ -20,23 +20,21 @@ export class ArbitragensService {
   ) {}
 
   async create(userId: string, userRole: string, dto: CreateArbitragemDto) {
-    // Verificar limite do plano antes de criar
-    const limite = await this.planos.verificarLimite(userId);
-    if (!limite.permitido) {
-      throw new BadRequestException(limite.motivo);
-    }
-
-    // Verificar se valorCausa excede o maximo do plano
-    const assinatura = await this.planos.getAssinatura(userId);
-    if (assinatura && assinatura.plano) {
-      const valorMaxCausa = Number(assinatura.plano.valorMaxCausa);
-      const valorCausa = Number(dto.valorCausa);
-      if (valorMaxCausa > 0 && valorCausa > valorMaxCausa) {
-        throw new BadRequestException(
-          `Valor da causa (R$ ${valorCausa.toLocaleString('pt-BR')}) excede o maximo permitido pelo plano ${assinatura.plano.label} (R$ ${valorMaxCausa.toLocaleString('pt-BR')}). Faca upgrade do plano.`,
-        );
-      }
-    }
+    // TODO: Reativar verificacoes de plano apos fase de testes
+    // const limite = await this.planos.verificarLimite(userId);
+    // if (!limite.permitido) {
+    //   throw new BadRequestException(limite.motivo);
+    // }
+    // const assinatura = await this.planos.getAssinatura(userId);
+    // if (assinatura && assinatura.plano) {
+    //   const valorMaxCausa = Number(assinatura.plano.valorMaxCausa);
+    //   const valorCausa = Number(dto.valorCausa);
+    //   if (valorMaxCausa > 0 && valorCausa > valorMaxCausa) {
+    //     throw new BadRequestException(
+    //       `Valor da causa excede o maximo permitido pelo plano. Faca upgrade.`,
+    //     );
+    //   }
+    // }
 
     // Buscar ou criar o requerido
     let requerido = await this.prisma.user.findFirst({
@@ -126,12 +124,11 @@ export class ArbitragensService {
 
     // Escolha de arbitro (se solicitada)
     if (dto.arbitroId) {
-      const plano = assinatura?.plano;
-      if (!plano?.escolherArbitro) {
-        throw new BadRequestException(
-          'Escolha de arbitro disponivel apenas nos planos Plus e Pro',
-        );
-      }
+      // TODO: Reativar verificacao de plano apos fase de testes
+      // const plano = assinatura?.plano;
+      // if (!plano?.escolherArbitro) {
+      //   throw new BadRequestException('Escolha de arbitro disponivel apenas nos planos Plus e Pro');
+      // }
       await this.prisma.arbitragemArbitro.create({
         data: {
           arbitragemId: arbitragem.id,
