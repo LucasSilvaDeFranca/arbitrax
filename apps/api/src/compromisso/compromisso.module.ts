@@ -3,9 +3,10 @@ import { CompromissoController, ZapSignWebhookController } from './compromisso.c
 import { CompromissoService } from './compromisso.service';
 import { ZapSignService } from './zapsign.service';
 import { EventsModule } from '../events/events.module';
+import { CertificadoDigitalModule } from '../certificado-digital/certificado-digital.module';
 
 @Module({
-  imports: [EventsModule],
+  imports: [EventsModule, CertificadoDigitalModule],
   controllers: [CompromissoController, ZapSignWebhookController],
   providers: [CompromissoService, ZapSignService],
   exports: [CompromissoService],

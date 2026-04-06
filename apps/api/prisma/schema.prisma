@@ -223,10 +223,12 @@ model Compromisso {
   pdfUrl        String?  @map("pdf_url")
   hashSha256    String?  @map("hash_sha256")
   clicksignKey  String?  @map("clicksign_key")
-  assinReqAt    DateTime? @map("assin_req_at")
-  assinReqdoAt  DateTime? @map("assin_reqdo_at")
-  status        String   @default("pendente")
-  createdAt     DateTime @default(now()) @map("created_at")
+  assinReqAt        DateTime? @map("assin_req_at")
+  assinReqdoAt      DateTime? @map("assin_reqdo_at")
+  assinaturaReqCn   String?   @map("assinatura_req_cn")
+  assinaturaReqdoCn String?   @map("assinatura_reqdo_cn")
+  status            String    @default("pendente")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
   arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
 

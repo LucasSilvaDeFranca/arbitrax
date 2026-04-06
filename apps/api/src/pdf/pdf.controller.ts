@@ -12,6 +12,8 @@ import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PdfService } from './pdf.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @ApiTags('PDF Downloads')
 @ApiBearerAuth()
@@ -41,6 +43,36 @@ export class PdfController {
 
     if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
 
+    // If a stored PDF exists, serve it directly (includes signed versions)
+    if (arb.compromisso?.pdfUrl) {
+      let storedBuffer: Buffer | null = null;
+      const pdfUrl = arb.compromisso.pdfUrl;
+
+      if (pdfUrl.startsWith('/uploads/')) {
+        const localFilePath = path.join(process.cwd(), pdfUrl);
+        if (fs.existsSync(localFilePath)) {
+          storedBuffer = fs.readFileSync(localFilePath);
+        }
+      } else {
+        // Try interpreting as relative storage path
+        const localFilePath = path.join(process.cwd(), 'uploads', pdfUrl.replace(/^\/[^/]+\//, ''));
+        if (fs.existsSync(localFilePath)) {
+          storedBuffer = fs.readFileSync(localFilePath);
+        }
+      }
+
+      if (storedBuffer) {
+        res.set({
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="compromisso-${arb.numero}.pdf"`,
+          'Content-Length': storedBuffer.length,
+        });
+        res.end(storedBuffer);
+        return;
+      }
+    }
+
+    // Fallback: generate on-the-fly
     const { buffer } = await this.pdfService.gerarCompromissoPdf({
       numero: arb.numero,
       objeto: arb.objeto,

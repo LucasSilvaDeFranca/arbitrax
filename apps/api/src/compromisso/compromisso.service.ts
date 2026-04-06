@@ -6,7 +6,13 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ZapSignService } from './zapsign.service';
 import { EventsService } from '../events/events.service';
+import { PdfService } from '../pdf/pdf.service';
+import { StorageService } from '../storage/storage.service';
+import { CertificadoDigitalService } from '../certificado-digital/certificado-digital.service';
+import { PdfSignerService } from '../certificado-digital/pdf-signer.service';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class CompromissoService {
@@ -14,9 +20,13 @@ export class CompromissoService {
     private prisma: PrismaService,
     private zapSign: ZapSignService,
     private events: EventsService,
+    private pdfService: PdfService,
+    private storage: StorageService,
+    private certificadoService: CertificadoDigitalService,
+    private pdfSignerService: PdfSignerService,
   ) {}
 
-  /** Gerar compromisso arbitral e enviar para assinatura */
+  /** Gerar compromisso arbitral, PDF e enviar para assinatura */
   async gerar(arbitragemId: string) {
     const arb = await this.prisma.arbitragem.findUnique({
       where: { id: arbitragemId },
@@ -38,7 +48,7 @@ export class CompromissoService {
 
     // Gerar HTML do termo
     const html = this.gerarHtmlCompromisso(arb);
-    const hash = crypto.createHash('sha256').update(html).digest('hex');
+    const htmlHash = crypto.createHash('sha256').update(html).digest('hex');
 
     // Enviar para ZapSign
     const arbitroNome = arb.arbitros?.[0]?.arbitro?.nome || 'A designar';
@@ -51,11 +61,29 @@ export class CompromissoService {
       ],
     });
 
+    // Gerar PDF do compromisso
+    const { buffer: pdfBuffer, hash: pdfHash } = await this.pdfService.gerarCompromissoPdf({
+      numero: arb.numero,
+      objeto: arb.objeto,
+      valorCausa: Number(arb.valorCausa),
+      categoria: arb.categoria,
+      requerenteNome: arb.requerente.nome,
+      requerenteCpfCnpj: arb.requerente.cpfCnpj,
+      requeridoNome: arb.requerido.nome,
+      requeridoCpfCnpj: arb.requerido.cpfCnpj,
+      arbitroNome,
+    });
+
+    // Upload PDF to storage
+    const storageKey = `arbitragens/${arbitragemId}/compromisso/compromisso-${arb.numero}.pdf`;
+    const uploaded = await this.storage.upload(pdfBuffer, storageKey, 'application/pdf');
+
     const compromisso = await this.prisma.compromisso.create({
       data: {
         arbitragemId,
-        hashSha256: hash,
-        clicksignKey: zapDoc?.token || null, // reutilizando campo para ZapSign token
+        hashSha256: pdfHash,
+        pdfUrl: uploaded.url,
+        clicksignKey: zapDoc?.token || null,
         status: zapDoc ? 'enviado' : 'pendente',
       },
     });
@@ -140,40 +168,117 @@ export class CompromissoService {
     return { ...compromisso, signatarios };
   }
 
-  /** Aceite interno (fallback sem ZapSign) */
-  async aceiteInterno(arbitragemId: string, userId: string, userRole: string) {
+  /** Assinatura digital com certificado A1 */
+  async assinarDigital(arbitragemId: string, userId: string) {
+    // 1. Find compromisso
+    const compromisso = await this.prisma.compromisso.findUnique({
+      where: { arbitragemId },
+    });
+    if (!compromisso) {
+      throw new NotFoundException('Compromisso nao encontrado');
+    }
+
+    // 2. Check PDF exists
+    if (!compromisso.pdfUrl) {
+      throw new BadRequestException('PDF do compromisso ainda nao foi gerado');
+    }
+
+    // 3. Find arbitragem to check user role
     const arb = await this.prisma.arbitragem.findUnique({
       where: { id: arbitragemId },
     });
-    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
-
-    let compromisso = await this.prisma.compromisso.findUnique({
-      where: { arbitragemId },
-    });
-
-    if (!compromisso) {
-      const html = this.gerarHtmlCompromisso(arb);
-      const hash = crypto.createHash('sha256').update(html).digest('hex');
-      compromisso = await this.prisma.compromisso.create({
-        data: { arbitragemId, hashSha256: hash, status: 'pendente' },
-      });
+    if (!arb) {
+      throw new NotFoundException('Arbitragem nao encontrada');
     }
 
-    const update: any = {};
-    if (arb.requerenteId === userId) update.assinReqAt = new Date();
-    if (arb.requeridoId === userId) update.assinReqdoAt = new Date();
+    const isRequerente = arb.requerenteId === userId;
+    const isRequerido = arb.requeridoId === userId;
+
+    if (!isRequerente && !isRequerido) {
+      throw new BadRequestException('Voce nao e parte desta arbitragem');
+    }
+
+    // 4. Check if user already signed
+    if (isRequerente && compromisso.assinReqAt) {
+      throw new BadRequestException('Requerente ja assinou este compromisso');
+    }
+    if (isRequerido && compromisso.assinReqdoAt) {
+      throw new BadRequestException('Requerido ja assinou este compromisso');
+    }
+
+    // 5. Get user's A1 certificate
+    const { pfxBuffer, senha, cn } =
+      await this.certificadoService.getCertificadoParaAssinatura(userId);
+
+    // 6. Read current PDF from storage
+    let currentPdfBuffer: Buffer;
+    const pdfUrl = compromisso.pdfUrl;
+
+    if (pdfUrl.startsWith('/uploads/')) {
+      // Local storage
+      const localFilePath = path.join(process.cwd(), pdfUrl);
+      if (!fs.existsSync(localFilePath)) {
+        throw new BadRequestException('Arquivo PDF nao encontrado no storage');
+      }
+      currentPdfBuffer = fs.readFileSync(localFilePath);
+    } else {
+      // S3 or other URL - try local path interpretation
+      const localFilePath = path.join(process.cwd(), 'uploads', pdfUrl.replace(/^\/[^/]+\//, ''));
+      if (fs.existsSync(localFilePath)) {
+        currentPdfBuffer = fs.readFileSync(localFilePath);
+      } else {
+        throw new BadRequestException('Arquivo PDF nao acessivel no storage');
+      }
+    }
+
+    // 7. Sign the PDF with user's certificate
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { nome: true },
+    });
+    const signerName = user?.nome || cn;
+
+    const { signedPdfBuffer, hash } = await this.pdfSignerService.assinarPdf(
+      userId,
+      currentPdfBuffer,
+      {
+        arbitragemNumero: arb.numero,
+        tipo: 'Compromisso Arbitral',
+        signerName,
+      },
+    );
+
+    // 8. Re-upload signed PDF (overwrite same key)
+    const storageKey = `arbitragens/${arbitragemId}/compromisso/compromisso-${arb.numero}.pdf`;
+    const uploaded = await this.storage.upload(signedPdfBuffer, storageKey, 'application/pdf');
+
+    // 9. Update compromisso fields
+    const updateData: any = {
+      pdfUrl: uploaded.url,
+      hashSha256: hash,
+    };
+
+    if (isRequerente) {
+      updateData.assinReqAt = new Date();
+      updateData.assinaturaReqCn = cn;
+    }
+    if (isRequerido) {
+      updateData.assinReqdoAt = new Date();
+      updateData.assinaturaReqdoCn = cn;
+    }
 
     const updated = await this.prisma.compromisso.update({
       where: { id: compromisso.id },
-      data: update,
+      data: updateData,
     });
 
-    // Se ambos assinaram
+    // 10. If BOTH signed: update status
     if (updated.assinReqAt && updated.assinReqdoAt) {
       await this.prisma.compromisso.update({
         where: { id: compromisso.id },
         data: { status: 'assinado' },
       });
+
       await this.prisma.arbitragem.update({
         where: { id: arbitragemId },
         data: { status: 'EM_INSTRUCAO' },
@@ -188,7 +293,29 @@ export class CompromissoService {
       });
     }
 
-    return updated;
+    // 11. Audit log
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        acao: 'COMPROMISSO_ASSINADO_DIGITALMENTE',
+        entidade: 'compromisso',
+        entidadeId: compromisso.id,
+        dadosDepois: {
+          cn,
+          hash,
+          role: isRequerente ? 'requerente' : 'requerido',
+          pdfUrl: uploaded.url,
+        },
+      },
+    });
+
+    // 12. Return
+    return {
+      success: true,
+      cn,
+      assinadoEm: new Date().toISOString(),
+      role: isRequerente ? 'requerente' : 'requerido',
+    };
   }
 
   /** Webhook ZapSign */

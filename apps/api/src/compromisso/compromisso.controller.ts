@@ -22,7 +22,7 @@ export class CompromissoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Gerar compromisso arbitral + enviar para assinatura (ZapSign)' })
+  @ApiOperation({ summary: 'Gerar compromisso arbitral + PDF + enviar para assinatura (ZapSign)' })
   gerar(@Param('arbitragemId') arbitragemId: string) {
     return this.compromissoService.gerar(arbitragemId);
   }
@@ -35,15 +35,15 @@ export class CompromissoController {
     return this.compromissoService.consultar(arbitragemId);
   }
 
-  @Post('aceitar')
+  @Post('assinar-digital')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Aceite interno do compromisso (fallback sem ZapSign)' })
-  aceiteInterno(
+  @ApiOperation({ summary: 'Assinar compromisso com certificado digital A1 (ICP-Brasil)' })
+  assinarDigital(
     @Param('arbitragemId') arbitragemId: string,
     @Request() req: any,
   ) {
-    return this.compromissoService.aceiteInterno(arbitragemId, req.user.sub, req.user.role);
+    return this.compromissoService.assinarDigital(arbitragemId, req.user.sub);
   }
 }
 
