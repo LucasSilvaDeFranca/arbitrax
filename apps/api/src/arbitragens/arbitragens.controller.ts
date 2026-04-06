@@ -17,19 +17,40 @@ import { ListArbitragensDto } from './dto/list-arbitragens.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { PrismaService } from '../prisma/prisma.service';
+import { AdminService } from '../admin/admin.service';
 
 @ApiTags('Arbitragens')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('api/v1/arbitragens')
 export class ArbitragensController {
-  constructor(private arbitragensService: ArbitragensService) {}
+  constructor(
+    private arbitragensService: ArbitragensService,
+    private prisma: PrismaService,
+    private adminService: AdminService,
+  ) {}
 
   @Post()
   @Roles('REQUERENTE', 'ADVOGADO', 'ADMIN')
   @ApiOperation({ summary: 'Criar pedido de arbitragem' })
   create(@Request() req: any, @Body() dto: CreateArbitragemDto) {
     return this.arbitragensService.create(req.user.sub, req.user.role, dto);
+  }
+
+  @Get('tipos-demanda')
+  @ApiOperation({ summary: 'Listar tipos de demanda ativos' })
+  listarTiposDemanda() {
+    return this.adminService.listarTiposDemanda();
+  }
+
+  @Get('arbitros-disponiveis')
+  @ApiOperation({ summary: 'Listar arbitros disponiveis para selecao' })
+  arbitrosDisponiveis() {
+    return this.prisma.user.findMany({
+      where: { role: 'ARBITRO', ativo: true },
+      select: { id: true, nome: true, oabNumero: true },
+    });
   }
 
   @Get()

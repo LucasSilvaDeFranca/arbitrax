@@ -153,6 +153,16 @@ model User {
   @@map("users")
 }
 
+model TipoDemanda {
+  id         String              @id @default(uuid())
+  nome       String              @unique
+  categoria  CategoriaArbitragem
+  ativo      Boolean             @default(true)
+  createdAt  DateTime            @default(now()) @map("created_at")
+  arbitragens Arbitragem[]
+  @@map("tipos_demanda")
+}
+
 model Arbitragem {
   id               String             @id @default(uuid())
   numero           String             @unique
@@ -164,11 +174,17 @@ model Arbitragem {
   valorCausa       Decimal            @db.Decimal(12, 2) @map("valor_causa")
   categoria        CategoriaArbitragem
   urgencia         Boolean            @default(false)
+  tipoDemandaId    String?            @map("tipo_demanda_id")
+  regraLeis        Boolean            @default(true) @map("regra_leis")
+  regraEquidade    Boolean            @default(false) @map("regra_equidade")
+  regraCostumes    Boolean            @default(false) @map("regra_costumes")
+  modoArbitro      String?            @map("modo_arbitro")
   status           ArbitragemStatus   @default(AGUARDANDO_PAGAMENTO_REGISTRO)
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("updated_at")
 
   // Relations
+  tipoDemanda      TipoDemanda?       @relation(fields: [tipoDemandaId], references: [id])
   requerente       User               @relation("Requerente", fields: [requerenteId], references: [id])
   requerido        User?              @relation("Requerido", fields: [requeridoId], references: [id])
   advRequerente    User?              @relation("AdvRequerente", fields: [advRequerenteId], references: [id])

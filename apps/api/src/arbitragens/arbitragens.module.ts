@@ -3,9 +3,10 @@ import { ArbitragensController } from './arbitragens.controller';
 import { ArbitragensService } from './arbitragens.service';
 import { EventsModule } from '../events/events.module';
 import { PlanosModule } from '../planos/planos.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
-  imports: [EventsModule, PlanosModule],
+  imports: [EventsModule, PlanosModule, AdminModule],
   controllers: [ArbitragensController],
   providers: [ArbitragensService],
   exports: [ArbitragensService],

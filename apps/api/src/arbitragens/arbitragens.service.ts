@@ -110,12 +110,53 @@ export class ArbitragensService {
         valorCausa: dto.valorCausa,
         categoria: dto.categoria as any,
         urgencia: dto.urgencia || false,
+        tipoDemandaId: dto.tipoDemandaId,
+        regraLeis: dto.regraLeis ?? true,
+        regraEquidade: dto.regraEquidade ?? false,
+        regraCostumes: dto.regraCostumes ?? false,
+        modoArbitro: dto.modoArbitro,
         status: 'AGUARDANDO_PAGAMENTO_REGISTRO',
       },
       include: {
         requerente: { select: { id: true, nome: true, email: true } },
         requerido: { select: { id: true, nome: true, email: true } },
         advRequerente: { select: { id: true, nome: true } },
+      },
+    });
+
+    // Escolha de arbitro (se solicitada)
+    if (dto.arbitroId) {
+      const plano = assinatura?.plano;
+      if (!plano?.escolherArbitro) {
+        throw new BadRequestException(
+          'Escolha de arbitro disponivel apenas nos planos Plus e Pro',
+        );
+      }
+      await this.prisma.arbitragemArbitro.create({
+        data: {
+          arbitragemId: arbitragem.id,
+          arbitroId: dto.arbitroId,
+        },
+      });
+    }
+
+    // Audit log da criacao
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        acao: 'ARBITRAGEM_CRIADA',
+        entidade: 'arbitragem',
+        entidadeId: arbitragem.id,
+        dadosDepois: {
+          tipoDemandaId: dto.tipoDemandaId,
+          regraLeis: dto.regraLeis ?? true,
+          regraEquidade: dto.regraEquidade ?? false,
+          regraCostumes: dto.regraCostumes ?? false,
+          modoArbitro: dto.modoArbitro || 'sistema',
+          arbitroId: dto.arbitroId,
+          valorCausa: dto.valorCausa,
+          categoria: dto.categoria,
+        },
       },
     });
 

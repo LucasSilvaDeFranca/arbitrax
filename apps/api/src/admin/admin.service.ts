@@ -2,12 +2,28 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+const TIPOS_DEMANDA_DEFAULT = [
+  { nome: 'Estadia', categoria: 'COMERCIAL' },
+  { nome: 'Vale-Pedagio', categoria: 'COMERCIAL' },
+  { nome: 'Pagamento de Frete', categoria: 'COMERCIAL' },
+  { nome: 'Acidente de Transito', categoria: 'COMERCIAL' },
+  { nome: 'Inadimplencia', categoria: 'COMERCIAL' },
+  { nome: 'Atraso na Entrega', categoria: 'COMERCIAL' },
+  { nome: 'Avaria', categoria: 'COMERCIAL' },
+  { nome: 'Descumprimento Contratual', categoria: 'COMERCIAL' },
+];
+
 @Injectable()
-export class AdminService {
+export class AdminService implements OnModuleInit {
   constructor(private prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.seedTiposDemanda();
+  }
 
   /** Dashboard stats */
   async getStats() {
@@ -253,5 +269,35 @@ export class AdminService {
       },
       select: { id: true, nome: true, email: true, oabNumero: true, role: true },
     });
+  }
+
+  /** Listar tipos de demanda ativos */
+  async listarTiposDemanda() {
+    return this.prisma.tipoDemanda.findMany({
+      where: { ativo: true },
+      orderBy: { nome: 'asc' },
+    });
+  }
+
+  /** Criar tipo de demanda */
+  async criarTipoDemanda(nome: string, categoria: string) {
+    return this.prisma.tipoDemanda.create({
+      data: { nome, categoria: categoria as any },
+    });
+  }
+
+  /** Seed tipos de demanda padrao */
+  async seedTiposDemanda() {
+    try {
+      for (const tipo of TIPOS_DEMANDA_DEFAULT) {
+        await this.prisma.tipoDemanda.upsert({
+          where: { nome: tipo.nome },
+          update: {},
+          create: { nome: tipo.nome, categoria: tipo.categoria as any },
+        });
+      }
+    } catch {
+      // Banco indisponivel no startup - seed sera feito na proxima inicializacao
+    }
   }
 }

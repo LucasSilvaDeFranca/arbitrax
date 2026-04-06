@@ -58,6 +58,37 @@ export class CreateArbitragemDto {
   @IsBoolean()
   urgencia?: boolean;
 
+  // Campos de tipo de demanda e regras
+  @ApiPropertyOptional({ description: 'ID do tipo de demanda' })
+  @IsOptional()
+  @IsString()
+  tipoDemandaId?: string;
+
+  @ApiPropertyOptional({ description: 'Aplicar regras de leis vigentes', default: true })
+  @IsOptional()
+  @IsBoolean()
+  regraLeis?: boolean;
+
+  @ApiPropertyOptional({ description: 'Aplicar equidade', default: false })
+  @IsOptional()
+  @IsBoolean()
+  regraEquidade?: boolean;
+
+  @ApiPropertyOptional({ description: 'Aplicar costumes do setor', default: false })
+  @IsOptional()
+  @IsBoolean()
+  regraCostumes?: boolean;
+
+  @ApiPropertyOptional({ description: 'Modo de designacao do arbitro (sistema | escolha)' })
+  @IsOptional()
+  @IsString()
+  modoArbitro?: string;
+
+  @ApiPropertyOptional({ description: 'ID do arbitro escolhido (se modoArbitro = escolha)' })
+  @IsOptional()
+  @IsString()
+  arbitroId?: string;
+
   // Campos opcionais para quando ADVOGADO cria em nome do cliente
   @ApiPropertyOptional({ description: 'Nome do requerente (quando advogado cria em nome do cliente)' })
   @IsOptional()

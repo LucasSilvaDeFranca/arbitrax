@@ -84,6 +84,18 @@ export class AdminController {
   casosDoArbitro(@Param('arbitroId') arbitroId: string) {
     return this.adminService.casosDoArbitro(arbitroId);
   }
+
+  @Get('tipos-demanda')
+  @ApiOperation({ summary: 'Listar tipos de demanda (admin)' })
+  listarTiposDemanda() {
+    return this.adminService.listarTiposDemanda();
+  }
+
+  @Post('tipos-demanda')
+  @ApiOperation({ summary: 'Criar tipo de demanda' })
+  criarTipoDemanda(@Body() dto: { nome: string; categoria: string }) {
+    return this.adminService.criarTipoDemanda(dto.nome, dto.categoria);
+  }
 }
 
 // Controller separado para arbitros (acao propria, nao admin)
