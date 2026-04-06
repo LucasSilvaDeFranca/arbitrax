@@ -92,14 +92,6 @@ export class PrazosService {
     });
   }
 
-  /** Marcar prazo(s) de determinado tipo como CUMPRIDO */
-  async marcarCumprido(arbitragemId: string, tipo: string) {
-    await this.prisma.prazo.updateMany({
-      where: { arbitragemId, tipo: tipo as any, status: 'ATIVO' },
-      data: { status: 'CUMPRIDO' },
-    });
-  }
-
   /** Cron: verificar prazos expirando e criar notificacoes */
   async processarPrazos() {
     const agora = new Date();

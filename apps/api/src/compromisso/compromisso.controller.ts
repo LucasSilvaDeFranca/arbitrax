@@ -18,6 +18,15 @@ import { Roles } from '../common/decorators/roles.decorator';
 export class CompromissoController {
   constructor(private compromissoService: CompromissoService) {}
 
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Gerar compromisso arbitral + enviar para assinatura (ZapSign)' })
+  gerar(@Param('arbitragemId') arbitragemId: string) {
+    return this.compromissoService.gerar(arbitragemId);
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

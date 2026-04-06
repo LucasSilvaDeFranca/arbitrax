@@ -76,13 +76,6 @@ export class SentencaService {
       data: { status: 'SENTENCA_EM_REVISAO' },
     });
 
-    // Emit sentenca gerada event
-    this.events.emitSentencaGerada({
-      arbitragemId,
-      numero: arb.numero,
-      sentencaId: sentenca.id,
-    });
-
     return { ...sentenca, conteudo: resultado };
   }
 
@@ -324,8 +317,8 @@ export class SentencaService {
     };
   }
 
-  /** Publicar sentenca (admin or SYSTEM) - envia para as partes e encerra arbitragem */
-  async publicar(arbitragemId: string, userId: string | null) {
+  /** Publicar sentenca (admin) - envia para as partes e encerra arbitragem */
+  async publicar(arbitragemId: string, userId: string) {
     const sentenca = await this.getUltimaSentenca(arbitragemId);
 
     if (sentenca.status !== 'RATIFICADA') {
@@ -397,7 +390,7 @@ export class SentencaService {
     // Audit log
     await this.prisma.auditLog.create({
       data: {
-        userId: userId || undefined,
+        userId,
         acao: 'SENTENCA_PUBLICADA',
         entidade: 'sentenca',
         entidadeId: sentenca.id,

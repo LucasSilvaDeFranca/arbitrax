@@ -21,7 +21,6 @@ import { ConvitesModule } from './convites/convites.module';
 import { VerificacaoModule } from './verificacao/verificacao.module';
 import { IaModule } from './ia/ia.module';
 import { EventsModule } from './events/events.module';
-import { AutomationModule } from './automation/automation.module';
 import { PdfModule } from './pdf/pdf.module';
 import { PdfController } from './pdf/pdf.controller';
 import { HealthController } from './health.controller';
@@ -49,7 +48,6 @@ import { HealthController } from './health.controller';
     ConvitesModule,
     VerificacaoModule,
     IaModule,
-    AutomationModule,
     PdfModule,
   ],
   controllers: [HealthController, PdfController],
