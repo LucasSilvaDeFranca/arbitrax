@@ -10,6 +10,7 @@ import { ListArbitragensDto } from './dto/list-arbitragens.dto';
 import { validateTransition, getAllowedTransitions } from './arbitragem-state-machine';
 import { EventsService } from '../events/events.service';
 import { PlanosService } from '../planos/planos.service';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class ArbitragensService {
@@ -17,6 +18,7 @@ export class ArbitragensService {
     private prisma: PrismaService,
     private events: EventsService,
     private planos: PlanosService,
+    private email: EmailService,
   ) {}
 
   async create(userId: string, userRole: string, dto: CreateArbitragemDto) {
@@ -342,6 +344,116 @@ export class ArbitragensService {
     });
 
     return logs;
+  }
+
+  async indicarAdvogado(arbitragemId: string, userId: string, advogadoEmail: string) {
+    const arbitragem = await this.prisma.arbitragem.findUnique({
+      where: { id: arbitragemId },
+      include: {
+        requerente: { select: { id: true, nome: true, email: true } },
+        requerido: { select: { id: true, nome: true, email: true } },
+        advRequerente: { select: { id: true, nome: true } },
+        advRequerido: { select: { id: true, nome: true } },
+      },
+    });
+
+    if (!arbitragem) {
+      throw new NotFoundException('Arbitragem nao encontrada');
+    }
+
+    // Determinar se o usuario e requerente ou requerido
+    const isRequerente = arbitragem.requerenteId === userId;
+    const isRequerido = arbitragem.requeridoId === userId;
+
+    if (!isRequerente && !isRequerido) {
+      throw new ForbiddenException('Voce nao e parte desta arbitragem');
+    }
+
+    // Buscar advogado pelo email
+    const advogado = await this.prisma.user.findFirst({
+      where: { email: advogadoEmail, role: 'ADVOGADO' },
+    });
+
+    if (!advogado) {
+      throw new NotFoundException('Advogado nao encontrado. O advogado precisa estar cadastrado na plataforma.');
+    }
+
+    // Atualizar a arbitragem com o advogado
+    if (isRequerente) {
+      await this.prisma.arbitragem.update({
+        where: { id: arbitragemId },
+        data: { advRequerenteId: advogado.id },
+      });
+    } else {
+      await this.prisma.arbitragem.update({
+        where: { id: arbitragemId },
+        data: { advRequeridoId: advogado.id },
+      });
+    }
+
+    // Notificar o advogado indicado
+    await this.prisma.notificacao.create({
+      data: {
+        userId: advogado.id,
+        titulo: 'Indicacao como advogado',
+        mensagem: `Voce foi indicado como advogado no caso ${arbitragem.numero}`,
+        tipo: 'sistema',
+        link: `/arbitragens/${arbitragemId}`,
+      },
+    }).catch(() => {});
+
+    // Verificar se a outra parte tem advogado; se nao, notificar
+    const outraParte = isRequerente ? arbitragem.requerido : arbitragem.requerente;
+    const outraParteAdvogado = isRequerente ? arbitragem.advRequerido : arbitragem.advRequerente;
+
+    if (outraParte && !outraParteAdvogado) {
+      await this.prisma.notificacao.create({
+        data: {
+          userId: outraParte.id,
+          titulo: 'Parte contraria constituiu advogado',
+          mensagem: 'A parte contraria constituiu advogado. Voce pode indicar um advogado para representa-lo.',
+          tipo: 'sistema',
+          link: `/arbitragens/${arbitragemId}`,
+        },
+      }).catch(() => {});
+
+      // Enviar email para a outra parte
+      if (outraParte.email && !outraParte.email.includes('@pendente.arbitrax')) {
+        await this.email.send(
+          outraParte.email,
+          `Advogado constituido pela parte contraria - ${arbitragem.numero}`,
+          `
+          <h2>Advogado constituido pela parte contraria</h2>
+          <p>Prezado(a) <strong>${outraParte.nome}</strong>,</p>
+          <p>Informamos que a parte contraria constituiu advogado no caso <strong>${arbitragem.numero}</strong>.</p>
+          <p>Voce tambem pode indicar um advogado para representa-lo, caso deseje.</p>
+          <div style="text-align:center;margin:30px 0;">
+            <a href="${process.env.APP_URL || 'http://localhost:3000'}/arbitragens/${arbitragemId}" style="background:#1e40af;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
+              Ver Caso
+            </a>
+          </div>
+          `,
+        );
+      }
+    }
+
+    // Audit log
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        acao: 'ADVOGADO_INDICADO',
+        entidade: 'arbitragem',
+        entidadeId: arbitragemId,
+        dadosDepois: {
+          advogadoId: advogado.id,
+          advogadoNome: advogado.nome,
+          advogadoEmail: advogado.email,
+          indicadoPor: isRequerente ? 'requerente' : 'requerido',
+        },
+      },
+    }).catch(() => {});
+
+    return { message: 'Advogado indicado com sucesso', advogado: { id: advogado.id, nome: advogado.nome } };
   }
 
   private checkAccess(arbitragem: any, userId: string, userRole: string): boolean {

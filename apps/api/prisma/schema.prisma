@@ -377,6 +377,10 @@ model Convite {
   enviadoAt     DateTime @default(now()) @map("enviado_at")
   respondidoAt  DateTime? @map("respondido_at")
   expiracaoAt   DateTime @map("expiracao_at")
+  aceiteRegras    Boolean @default(false) @map("aceite_regras")
+  aceiteLei       Boolean @default(false) @map("aceite_lei")
+  aceiteEquidade  Boolean @default(false) @map("aceite_equidade")
+  aceiteCostumes  Boolean @default(false) @map("aceite_costumes")
 
   arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
 

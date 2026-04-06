@@ -30,6 +30,8 @@ export default function ArbitragemDetailPage() {
   const [arb, setArb] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
+  const [advogadoEmail, setAdvogadoEmail] = useState('');
+  const [indicandoAdvogado, setIndicandoAdvogado] = useState(false);
 
   const load = () => {
     const token = getToken();
@@ -55,6 +57,22 @@ export default function ArbitragemDetailPage() {
       alert(err.message || 'Erro na transicao');
     } finally {
       setTransitioning(false);
+    }
+  };
+
+  const handleIndicarAdvogado = async () => {
+    const token = getToken();
+    if (!token || !advogadoEmail.trim()) return;
+
+    setIndicandoAdvogado(true);
+    try {
+      await arbitragensApi.indicarAdvogado(id, advogadoEmail.trim(), token);
+      setAdvogadoEmail('');
+      load();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao indicar advogado');
+    } finally {
+      setIndicandoAdvogado(false);
     }
   };
 
@@ -249,6 +267,42 @@ export default function ArbitragemDetailPage() {
                 </div>
               )}
 
+              {/* Requerido: indicar advogado */}
+              {isRequerido && !arb.advRequerido && (
+                <div className={`${actionCardBase} border-purple-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Indicar Advogado</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">
+                    Voce pode indicar um advogado cadastrado na plataforma para representa-lo neste caso.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      placeholder="Email do advogado"
+                      value={advogadoEmail}
+                      onChange={(e) => setAdvogadoEmail(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/50 text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <button
+                      onClick={handleIndicarAdvogado}
+                      disabled={indicandoAdvogado || !advogadoEmail.trim()}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {indicandoAdvogado ? '...' : 'Indicar Advogado'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Requerido: advogado ja indicado */}
+              {isRequerido && arb.advRequerido && (
+                <div className={`${actionCardBase} border-purple-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-1">Seu Advogado</h3>
+                  <p className="text-sm text-gray-700 dark:text-slate-300">
+                    Dr. {arb.advRequerido.nome}
+                  </p>
+                </div>
+              )}
+
               {/* Requerido: sentenca disponivel */}
               {isRequerido && (status === 'SENTENCA_RATIFICADA' || status === 'ENCERRADA') && (
                 <div className={`${actionCardBase} border-green-500`}>
@@ -289,6 +343,45 @@ export default function ArbitragemDetailPage() {
                   <Link href={`/arbitragens/${id}/documentos`} className="inline-block px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm">
                     Enviar Provas
                   </Link>
+                </div>
+              )}
+
+              {/* Requerente: alerta - parte contraria constituiu advogado */}
+              {isRequerente && arb.advRequerido && !arb.advRequerente && (
+                <div className={`${actionCardBase} border-orange-500`}>
+                  <h3 className="font-semibold text-orange-700 dark:text-orange-300 mb-2">Parte contraria constituiu advogado</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">
+                    A parte contraria constituiu advogado. Deseja indicar um advogado para representa-lo?
+                  </p>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="email"
+                      placeholder="Email do advogado"
+                      value={advogadoEmail}
+                      onChange={(e) => setAdvogadoEmail(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/50 text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                    <button
+                      onClick={handleIndicarAdvogado}
+                      disabled={indicandoAdvogado || !advogadoEmail.trim()}
+                      className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {indicandoAdvogado ? '...' : 'Indicar Meu Advogado'}
+                    </button>
+                  </div>
+                  <button className="px-4 py-2 bg-slate-600/50 text-slate-300 rounded-lg hover:bg-slate-600 transition text-sm">
+                    Prosseguir sem advogado
+                  </button>
+                </div>
+              )}
+
+              {/* Requerente: advogado ja indicado */}
+              {isRequerente && arb.advRequerente && (
+                <div className={`${actionCardBase} border-purple-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-1">Seu Advogado</h3>
+                  <p className="text-sm text-gray-700 dark:text-slate-300">
+                    Dr. {arb.advRequerente.nome}
+                  </p>
                 </div>
               )}
 

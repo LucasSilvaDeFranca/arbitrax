@@ -44,4 +44,11 @@ export const arbitragensApi = {
 
   getTimeline: (id: string, token: string) =>
     api<any[]>(`/api/v1/arbitragens/${id}/timeline`, { token }),
+
+  indicarAdvogado: (id: string, advogadoEmail: string, token: string) =>
+    api<any>(`/api/v1/arbitragens/${id}/indicar-advogado`, {
+      method: 'POST',
+      body: JSON.stringify({ advogadoEmail }),
+      token,
+    }),
 };

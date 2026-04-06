@@ -75,6 +75,9 @@ export class ConvitesService {
             categoria: true,
             status: true,
             createdAt: true,
+            regraLeis: true,
+            regraEquidade: true,
+            regraCostumes: true,
             requerente: { select: { nome: true } },
             requerido: { select: { id: true, nome: true, email: true } },
           },
@@ -97,16 +100,31 @@ export class ConvitesService {
   }
 
   /** Aceitar convite (pode ser sem login) */
-  async aceitar(token: string) {
+  async aceitar(
+    token: string,
+    body?: { aceiteRegras?: boolean; aceiteLei?: boolean; aceiteEquidade?: boolean; aceiteCostumes?: boolean },
+  ) {
     const convite = await this.consultarPorToken(token);
 
     if (convite.status !== 'pendente') {
       throw new BadRequestException(`Convite ja foi ${convite.status}`);
     }
 
+    // Validar aceite obrigatorio das regras de arbitragem
+    if (!body?.aceiteRegras) {
+      throw new BadRequestException('E obrigatorio aceitar as regras de arbitragem para prosseguir.');
+    }
+
     await this.prisma.convite.update({
       where: { id: convite.id },
-      data: { status: 'aceito', respondidoAt: new Date() },
+      data: {
+        status: 'aceito',
+        respondidoAt: new Date(),
+        aceiteRegras: body.aceiteRegras ?? false,
+        aceiteLei: body.aceiteLei ?? false,
+        aceiteEquidade: body.aceiteEquidade ?? false,
+        aceiteCostumes: body.aceiteCostumes ?? false,
+      },
     });
 
     // Avancar arbitragem para AGUARDANDO_ASSINATURA
@@ -114,6 +132,23 @@ export class ConvitesService {
       where: { id: convite.arbitragemId },
       data: { status: 'AGUARDANDO_ASSINATURA' },
     });
+
+    // Audit log do aceite das regras
+    await this.prisma.auditLog.create({
+      data: {
+        userId: convite.arbitragem?.requerido?.id || null,
+        acao: 'CONVITE_ACEITO_COM_REGRAS',
+        entidade: 'convite',
+        entidadeId: convite.id,
+        dadosDepois: {
+          aceiteRegras: body?.aceiteRegras ?? false,
+          aceiteLei: body?.aceiteLei ?? false,
+          aceiteEquidade: body?.aceiteEquidade ?? false,
+          aceiteCostumes: body?.aceiteCostumes ?? false,
+          arbitragemId: convite.arbitragemId,
+        },
+      },
+    }).catch(() => {});
 
     // Buscar arbitragem completa para notificacao e email
     const arbFull = await this.prisma.arbitragem.findUnique({

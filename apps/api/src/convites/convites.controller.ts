@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ConvitesService } from './convites.service';
 
@@ -15,8 +15,11 @@ export class ConvitesController {
 
   @Post(':token/aceitar')
   @ApiOperation({ summary: 'Aceitar convite de arbitragem (publico)' })
-  aceitar(@Param('token') token: string) {
-    return this.convitesService.aceitar(token);
+  aceitar(
+    @Param('token') token: string,
+    @Body() body: { aceiteRegras?: boolean; aceiteLei?: boolean; aceiteEquidade?: boolean; aceiteCostumes?: boolean },
+  ) {
+    return this.convitesService.aceitar(token, body);
   }
 
   @Post(':token/recusar')

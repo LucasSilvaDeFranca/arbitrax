@@ -14,6 +14,10 @@ export default function ConvitePage() {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
+  const [aceiteRegras, setAceiteRegras] = useState(false);
+  const [aceiteLei, setAceiteLei] = useState(false);
+  const [aceiteEquidade, setAceiteEquidade] = useState(false);
+  const [aceiteCostumes, setAceiteCostumes] = useState(false);
 
   useEffect(() => {
     fetch(`${API_URL}/api/v1/convites/${token}`)
@@ -26,10 +30,22 @@ export default function ConvitePage() {
   const handleAceitar = async () => {
     setActing(true);
     try {
-      await fetch(`${API_URL}/api/v1/convites/${token}/aceitar`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/v1/convites/${token}/aceitar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aceiteRegras, aceiteLei, aceiteEquidade, aceiteCostumes }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Erro desconhecido' }));
+        throw new Error(err.message);
+      }
       setResultado('aceito');
-    } catch { setResultado('erro'); }
-    finally { setActing(false); }
+    } catch (err: any) {
+      alert(err.message || 'Erro ao aceitar convite');
+      setActing(false);
+      return;
+    }
+    setActing(false);
   };
 
   const handleRecusar = async () => {
@@ -147,9 +163,72 @@ export default function ConvitePage() {
               </div>
             </div>
 
+            {/* Regras de Arbitragem selecionadas pelo requerente */}
+            {convite.status === 'pendente' && (
+              <div className="bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/50 rounded-lg p-4 space-y-3">
+                <p className="font-medium text-gray-800 dark:text-slate-200 text-sm mb-2">
+                  Regras de arbitragem aplicaveis a este procedimento:
+                </p>
+                <div className="space-y-2">
+                  {arb.regraLeis && (
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={aceiteLei}
+                        onChange={(e) => setAceiteLei(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-slate-500 text-primary-600 focus:ring-primary-500 bg-slate-700"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">
+                        Leis aplicaveis (normas juridicas vigentes no Brasil)
+                      </span>
+                    </label>
+                  )}
+                  {arb.regraEquidade && (
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={aceiteEquidade}
+                        onChange={(e) => setAceiteEquidade(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-slate-500 text-primary-600 focus:ring-primary-500 bg-slate-700"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">
+                        Equidade (a criterio do arbitro)
+                      </span>
+                    </label>
+                  )}
+                  {arb.regraCostumes && (
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={aceiteCostumes}
+                        onChange={(e) => setAceiteCostumes(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-slate-500 text-primary-600 focus:ring-primary-500 bg-slate-700"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">
+                        Costumes do setor (praticas comerciais)
+                      </span>
+                    </label>
+                  )}
+                </div>
+                <hr className="border-slate-600/50" />
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={aceiteRegras}
+                    onChange={(e) => setAceiteRegras(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-slate-500 text-primary-600 focus:ring-primary-500 bg-slate-700"
+                  />
+                  <span className="text-sm font-semibold text-gray-800 dark:text-slate-100 group-hover:text-gray-900 dark:group-hover:text-white">
+                    Aceito as regras de arbitragem acima e concordo com o procedimento
+                  </span>
+                </label>
+              </div>
+            )}
+
+            {/* Info sobre arbitragem digital */}
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-300">
               <p className="font-medium mb-1">Sobre a arbitragem digital:</p>
-              <ul className="list-disc pl-5 space-y-1 text-blue-700">
+              <ul className="list-disc pl-5 space-y-1 text-blue-700 dark:text-blue-400">
                 <li>Procedimento 100% online via plataforma ArbitraX</li>
                 <li>Conforme Lei 9.307/96 (Lei de Arbitragem)</li>
                 <li>Sentenca com mesmos efeitos de decisao judicial</li>
@@ -161,15 +240,15 @@ export default function ConvitePage() {
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleAceitar}
-                  disabled={acting}
-                  className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold disabled:opacity-50"
+                  disabled={acting || !aceiteRegras}
+                  className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {acting ? '...' : 'Aceitar Arbitragem'}
                 </button>
                 <button
                   onClick={handleRecusar}
                   disabled={acting}
-                  className="flex-1 py-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition font-bold disabled:opacity-50"
+                  className="flex-1 py-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 transition font-bold disabled:opacity-50"
                 >
                   {acting ? '...' : 'Recusar'}
                 </button>

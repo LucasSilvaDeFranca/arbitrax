@@ -90,6 +90,16 @@ export class ArbitragensController {
     return this.arbitragensService.updateStatus(id, 'RECUSADA', req.user.sub, 'ADMIN');
   }
 
+  @Post(':id/indicar-advogado')
+  @ApiOperation({ summary: 'Indicar advogado para representar a parte' })
+  indicarAdvogado(
+    @Param('id') id: string,
+    @Body() body: { advogadoEmail: string },
+    @Request() req: any,
+  ) {
+    return this.arbitragensService.indicarAdvogado(id, req.user.sub, body.advogadoEmail);
+  }
+
   @Get(':id/timeline')
   @ApiOperation({ summary: 'Timeline de eventos da arbitragem' })
   getTimeline(@Param('id') id: string, @Request() req: any) {
