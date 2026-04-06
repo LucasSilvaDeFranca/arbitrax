@@ -21,9 +21,38 @@ export interface Prova {
   parte: { id: string; nome: string; role: string };
 }
 
+/** Fetch com auto-refresh de token para FormData (uploads) */
+async function fetchWithRefresh(url: string, options: RequestInit & { headers: Record<string, string> }): Promise<Response> {
+  let res = await fetch(url, options);
+
+  if (res.status === 401) {
+    // Tentar refresh
+    const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+    if (refreshToken) {
+      try {
+        const refreshRes = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
+          // Refazer request com novo token
+          options.headers['Authorization'] = `Bearer ${data.accessToken}`;
+          res = await fetch(url, options);
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
+  return res;
+}
+
 export const pecasApi = {
   list: (arbitragemId: string, token: string) =>
-    fetch(`${API_URL}/api/v1/arbitragens/${arbitragemId}/pecas`, {
+    fetchWithRefresh(`${API_URL}/api/v1/arbitragens/${arbitragemId}/pecas`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((r) => {
       if (!r.ok) throw new Error('Erro ao listar pecas');
@@ -31,7 +60,7 @@ export const pecasApi = {
     }),
 
   create: (arbitragemId: string, formData: FormData, token: string) =>
-    fetch(`${API_URL}/api/v1/arbitragens/${arbitragemId}/pecas`, {
+    fetchWithRefresh(`${API_URL}/api/v1/arbitragens/${arbitragemId}/pecas`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -43,7 +72,7 @@ export const pecasApi = {
 
 export const provasApi = {
   list: (arbitragemId: string, token: string) =>
-    fetch(`${API_URL}/api/v1/arbitragens/${arbitragemId}/provas`, {
+    fetchWithRefresh(`${API_URL}/api/v1/arbitragens/${arbitragemId}/provas`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((r) => {
       if (!r.ok) throw new Error('Erro ao listar provas');
@@ -51,7 +80,7 @@ export const provasApi = {
     }),
 
   upload: (arbitragemId: string, formData: FormData, token: string) =>
-    fetch(`${API_URL}/api/v1/arbitragens/${arbitragemId}/provas`, {
+    fetchWithRefresh(`${API_URL}/api/v1/arbitragens/${arbitragemId}/provas`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -61,7 +90,7 @@ export const provasApi = {
     }),
 
   download: (arbitragemId: string, provaId: string, token: string) =>
-    fetch(`${API_URL}/api/v1/arbitragens/${arbitragemId}/provas/${provaId}/download`, {
+    fetchWithRefresh(`${API_URL}/api/v1/arbitragens/${arbitragemId}/provas/${provaId}/download`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((r) => {
       if (!r.ok) throw new Error('Erro ao baixar prova');
