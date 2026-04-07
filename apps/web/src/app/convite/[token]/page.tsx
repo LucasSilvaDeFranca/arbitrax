@@ -72,7 +72,12 @@ export default function ConvitePage() {
         } catch { /* fallback para tela de resultado */ }
       }
 
-      setResultado('aceito');
+      // Se ja tem conta, redirecionar pro login
+      if ((convite as any)?.requeridoTemConta && !senha) {
+        setResultado('aceito_login');
+      } else {
+        setResultado('aceito');
+      }
     } catch (err: any) {
       alert(err.message || 'Erro ao aceitar convite');
       setActing(false);
@@ -121,22 +126,21 @@ export default function ConvitePage() {
           <h1 className={`text-2xl font-bold mb-2 ${
             resultado === 'aceito' ? 'text-green-700' : resultado === 'recusado' ? 'text-red-700' : 'text-yellow-700'
           }`}>
-            {resultado === 'aceito' ? 'Convite Aceito!' : resultado === 'recusado' ? 'Convite Recusado' : 'Erro'}
+            {(resultado === 'aceito' || resultado === 'aceito_login') ? 'Convite Aceito!' : resultado === 'recusado' ? 'Convite Recusado' : 'Erro'}
           </h1>
           <p className="text-gray-500 dark:text-slate-400 mb-6">
             {resultado === 'aceito'
-              ? 'Voce aceitou participar da arbitragem. Faca login ou cadastre-se para acompanhar o caso.'
+              ? 'Conta criada! Voce ja esta logado e sera redirecionado.'
+              : resultado === 'aceito_login'
+              ? 'Voce aceitou participar da arbitragem. Faca login para acessar o caso.'
               : resultado === 'recusado'
               ? 'Voce recusou o convite. O requerente sera notificado.'
               : 'Ocorreu um erro. Tente novamente.'}
           </p>
-          {resultado === 'aceito' && (
+          {(resultado === 'aceito' || resultado === 'aceito_login') && (
             <div className="flex gap-3 justify-center">
               <Link href="/login" className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
                 Entrar
-              </Link>
-              <Link href="/register" className="px-6 py-2 border border-primary-600 text-primary-600 rounded-lg hover:bg-primary-50 transition">
-                Cadastrar
               </Link>
             </div>
           )}
@@ -269,8 +273,8 @@ export default function ConvitePage() {
               </ul>
             </div>
 
-            {/* Criar senha (se requerido nao tem conta) */}
-            {convite.status === 'pendente' && (
+            {/* Criar senha OU info que ja tem conta */}
+            {convite.status === 'pendente' && !(convite as any).requeridoTemConta && (
               <div className="bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/50 rounded-lg p-4 space-y-3">
                 <p className="font-medium text-gray-800 dark:text-slate-200 text-sm">
                   Crie sua senha para acessar a plataforma:
@@ -295,14 +299,25 @@ export default function ConvitePage() {
               </div>
             )}
 
+            {convite.status === 'pendente' && (convite as any).requeridoTemConta && (
+              <div className="bg-green-900/20 dark:bg-green-900/20 border border-green-700/50 rounded-lg p-4">
+                <p className="font-medium text-green-700 dark:text-green-300 text-sm">
+                  Voce ja tem conta na plataforma ({arb.requerido?.email})
+                </p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  Ao aceitar, voce sera redirecionado para fazer login e acessar o caso.
+                </p>
+              </div>
+            )}
+
             {convite.status === 'pendente' && (
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleAceitar}
-                  disabled={acting || !aceiteRegras || !senha || senha.length < 6 || senha !== confirmarSenha}
+                  disabled={acting || !aceiteRegras || (!(convite as any).requeridoTemConta && (!senha || senha.length < 6 || senha !== confirmarSenha))}
                   className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {acting ? '...' : 'Aceitar e Criar Conta'}
+                  {acting ? '...' : (convite as any).requeridoTemConta ? 'Aceitar Arbitragem' : 'Aceitar e Criar Conta'}
                 </button>
                 <button
                   onClick={handleRecusar}

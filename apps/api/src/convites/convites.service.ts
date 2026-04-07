@@ -96,7 +96,17 @@ export class ConvitesService {
       convite.status = 'expirado';
     }
 
-    return convite;
+    // Verificar se requerido ja tem conta (senha definida)
+    let requeridoTemConta = false;
+    if (convite.arbitragem?.requerido?.id) {
+      const requerido = await this.prisma.user.findUnique({
+        where: { id: convite.arbitragem.requerido.id },
+        select: { senhaHash: true },
+      });
+      requeridoTemConta = !!(requerido?.senhaHash && requerido.senhaHash !== '');
+    }
+
+    return { ...convite, requeridoTemConta };
   }
 
   /** Aceitar convite (pode ser sem login) */
