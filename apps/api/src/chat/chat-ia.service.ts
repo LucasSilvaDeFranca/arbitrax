@@ -55,6 +55,33 @@ export class ChatIaService {
 
     if (!arb) return 'Caso nao encontrado.';
 
+    // 1b. Identify who is asking
+    let userNome = 'Usuario';
+    let userRole = 'DESCONHECIDO';
+    let userPapelNoCaso = 'parte';
+    if (userId) {
+      const userInfo = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { nome: true, role: true },
+      });
+      if (userInfo) {
+        userNome = userInfo.nome;
+        userRole = userInfo.role;
+      }
+
+      // Determine role within THIS case
+      const arbFull = await this.prisma.arbitragem.findUnique({
+        where: { id: arbitragemId },
+        select: { requerenteId: true, requeridoId: true, advRequerenteId: true, advRequeridoId: true },
+      });
+      if (arbFull) {
+        if (arbFull.requerenteId === userId) userPapelNoCaso = 'requerente (autor)';
+        else if (arbFull.requeridoId === userId) userPapelNoCaso = 'requerido (reu)';
+        else if (arbFull.advRequerenteId === userId) userPapelNoCaso = 'advogado do requerente';
+        else if (arbFull.advRequeridoId === userId) userPapelNoCaso = 'advogado do requerido';
+      }
+    }
+
     // 2. Load recent chat history (last 10 msgs from this user's private conversation)
     const historyWhere: any = { arbitragemId, canal };
     if (canal === 'privado' && userId) {
@@ -97,6 +124,8 @@ Forneca analise aprofundada das provas, sugira fundamentacao juridica (Lei 9.307
 Discuta pontos criticos, identifique fortalezas e fraquezas dos argumentos de cada parte.
 Seja detalhado e tecnico. Use linguagem juridica formal.
 
+VOCE ESTA CONVERSANDO COM: ${userNome} (${userRole}) - papel no caso: ${userPapelNoCaso}
+
 CASO: ${arb.numero} | ${arb.objeto}
 Valor: R$ ${Number(arb.valorCausa).toLocaleString('pt-BR')} | Categoria: ${arb.categoria}
 Status: ${arb.status}
@@ -110,6 +139,12 @@ Responda de forma clara, educada e acessivel.
 Oriente sobre: status do caso, prazos, documentos necessarios, proximos passos.
 NUNCA revele analises internas, estrategias do arbitro, ou conteudo de sentencas em andamento.
 NUNCA tome partido - seja imparcial.
+Trate o usuario pelo nome e adapte suas respostas conforme o papel dele no caso.
+
+VOCE ESTA CONVERSANDO COM: ${userNome} (${userRole}) - papel no caso: ${userPapelNoCaso}
+${userPapelNoCaso === 'requerente (autor)' ? 'Este usuario ABRIU o caso. Oriente-o sobre seus direitos como autor e proximos passos.' : ''}
+${userPapelNoCaso === 'requerido (reu)' ? 'Este usuario foi CONVIDADO para o caso. Oriente-o sobre seus direitos de defesa e prazos.' : ''}
+${userPapelNoCaso.includes('advogado') ? 'Este usuario e advogado de uma das partes. Use linguagem tecnica juridica.' : ''}
 
 CASO: ${arb.numero} | ${arb.objeto}
 Valor: R$ ${Number(arb.valorCausa).toLocaleString('pt-BR')} | Categoria: ${arb.categoria}
