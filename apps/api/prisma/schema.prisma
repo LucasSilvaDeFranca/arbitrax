@@ -354,17 +354,18 @@ model Cobranca {
 model ChatMessage {
   id            String   @id @default(uuid())
   arbitragemId  String   @map("arbitragem_id")
-  userId        String   @map("user_id")
-  tipo          String   @default("text") // text | document | image | video | audio | system
+  userId        String?  @map("user_id")
+  tipo          String   @default("text") // text | document | image | video | audio | system | ia
+  canal         String   @default("processos")
   conteudo      String?
   mediaUrl      String?  @map("media_url")
   lida          Boolean  @default(false)
   createdAt     DateTime @default(now()) @map("created_at")
 
   arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
-  user          User       @relation(fields: [userId], references: [id])
+  user          User?      @relation(fields: [userId], references: [id])
 
-  @@index([arbitragemId, createdAt])
+  @@index([arbitragemId, canal, createdAt])
   @@map("chat_messages")
 }
 

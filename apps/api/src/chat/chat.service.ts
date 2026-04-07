@@ -13,9 +13,15 @@ export class ChatService {
     arbitragemId: string,
     userId: string,
     userRole: string,
-    data: { conteudo?: string; tipo?: string; mediaUrl?: string },
+    data: { conteudo?: string; tipo?: string; mediaUrl?: string; canal?: string },
   ) {
     await this.checkAccess(arbitragemId, userId, userRole);
+
+    const canal = data.canal || 'processos';
+
+    if (canal === 'arbitragem' && userRole !== 'ARBITRO' && userRole !== 'ADMIN') {
+      throw new ForbiddenException('Acesso ao Grupo Arbitragem restrito a arbitros');
+    }
 
     const msg = await this.prisma.chatMessage.create({
       data: {
@@ -24,6 +30,7 @@ export class ChatService {
         tipo: data.tipo || 'text',
         conteudo: data.conteudo,
         mediaUrl: data.mediaUrl,
+        canal,
       },
       include: {
         user: { select: { id: true, nome: true, role: true } },
@@ -34,7 +41,7 @@ export class ChatService {
   }
 
   /** Enviar mensagem de sistema (notificacoes automaticas no chat) */
-  async sendSystemMessage(arbitragemId: string, conteudo: string) {
+  async sendSystemMessage(arbitragemId: string, conteudo: string, canal: string = 'processos') {
     // Buscar admin ou usar primeiro user como fallback
     const admin = await this.prisma.user.findFirst({ where: { role: 'ADMIN' } });
     if (!admin) return;
@@ -45,6 +52,20 @@ export class ChatService {
         userId: admin.id,
         tipo: 'system',
         conteudo,
+        canal,
+      },
+    });
+  }
+
+  /** Enviar mensagem da IA (userId null) */
+  async sendIaMessage(arbitragemId: string, conteudo: string, canal: string = 'processos') {
+    return this.prisma.chatMessage.create({
+      data: {
+        arbitragemId,
+        userId: null,
+        tipo: 'ia',
+        conteudo,
+        canal,
       },
     });
   }
@@ -53,12 +74,17 @@ export class ChatService {
     arbitragemId: string,
     userId: string,
     userRole: string,
+    canal: string = 'processos',
     cursor?: string,
     limit = 50,
   ) {
     await this.checkAccess(arbitragemId, userId, userRole);
 
-    const where: any = { arbitragemId };
+    if (canal === 'arbitragem' && userRole !== 'ARBITRO' && userRole !== 'ADMIN') {
+      throw new ForbiddenException('Acesso ao Grupo Arbitragem restrito a arbitros');
+    }
+
+    const where: any = { arbitragemId, canal };
     if (cursor) {
       where.createdAt = { lt: new Date(cursor) };
     }
@@ -76,6 +102,7 @@ export class ChatService {
     await this.prisma.chatMessage.updateMany({
       where: {
         arbitragemId,
+        canal,
         userId: { not: userId },
         lida: false,
       },
@@ -85,7 +112,7 @@ export class ChatService {
     return messages.reverse();
   }
 
-  async getUnreadCount(userId: string) {
+  async getUnreadCount(userId: string, userRole: string) {
     // Buscar arbitragens do usuario
     const arbs = await this.prisma.arbitragem.findMany({
       where: {
@@ -101,15 +128,30 @@ export class ChatService {
     });
 
     const arbIds = arbs.map((a) => a.id);
-    if (!arbIds.length) return 0;
+    if (!arbIds.length) return { processos: 0, arbitragem: 0 };
 
-    return this.prisma.chatMessage.count({
+    const processos = await this.prisma.chatMessage.count({
       where: {
         arbitragemId: { in: arbIds },
+        canal: 'processos',
         userId: { not: userId },
         lida: false,
       },
     });
+
+    let arbitragem = 0;
+    if (userRole === 'ARBITRO' || userRole === 'ADMIN') {
+      arbitragem = await this.prisma.chatMessage.count({
+        where: {
+          arbitragemId: { in: arbIds },
+          canal: 'arbitragem',
+          userId: { not: userId },
+          lida: false,
+        },
+      });
+    }
+
+    return { processos, arbitragem };
   }
 
   private async checkAccess(arbitragemId: string, userId: string, userRole: string) {
