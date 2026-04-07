@@ -1,18 +1,26 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { EventsService } from '../events/events.service';
+import { CompromissoService } from '../compromisso/compromisso.service';
 
 @Injectable()
 export class ConvitesService {
+  private readonly logger = new Logger(ConvitesService.name);
+
   constructor(
     private prisma: PrismaService,
     private email: EmailService,
     private events: EventsService,
+    @Inject(forwardRef(() => CompromissoService))
+    private compromissoService: CompromissoService,
   ) {}
 
   /** Criar convite automaticamente ao criar arbitragem */
@@ -162,6 +170,14 @@ export class ConvitesService {
       where: { id: convite.arbitragemId },
       data: { status: 'AGUARDANDO_ASSINATURA' },
     });
+
+    // Auto-gerar compromisso arbitral (PDF)
+    try {
+      await this.compromissoService.gerar(convite.arbitragemId);
+      this.logger.log(`Compromisso gerado automaticamente para ${convite.arbitragemId}`);
+    } catch (err: any) {
+      this.logger.warn(`Compromisso nao gerado automaticamente: ${err.message}`);
+    }
 
     // Audit log do aceite das regras
     await this.prisma.auditLog.create({
