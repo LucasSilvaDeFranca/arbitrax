@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { StorageModule } from './storage/storage.module';
 import { EmailModule } from './email/email.module';
+import { RagModule } from './rag/rag.module';
 import { AuthModule } from './auth/auth.module';
 import { ArbitragensModule } from './arbitragens/arbitragens.module';
 import { PecasModule } from './pecas/pecas.module';
@@ -32,6 +33,7 @@ import { HealthController } from './health.controller';
     PrismaModule,
     StorageModule,
     EmailModule,
+    RagModule,
     EventsModule,
     AuthModule,
     ArbitragensModule,

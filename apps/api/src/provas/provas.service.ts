@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { RagService } from '../rag/rag.service';
 import { CreateProvaDto } from './dto/create-prova.dto';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class ProvasService {
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
+    private ragService: RagService,
   ) {}
 
   async upload(
@@ -78,6 +80,23 @@ export class ProvasService {
         },
       },
     });
+
+    // Process for RAG (extract text + generate embeddings)
+    try {
+      const textoExtraido = await this.ragService.processarProva(
+        prova.id, file.buffer, file.mimetype,
+        { arbitragemId, parteId: userId },
+      );
+      if (textoExtraido) {
+        await this.prisma.prova.update({
+          where: { id: prova.id },
+          data: { textoExtraido },
+        });
+      }
+    } catch (err: any) {
+      // RAG processing failure should not break upload
+      console.warn('RAG processing failed:', err.message);
+    }
 
     return prova;
   }

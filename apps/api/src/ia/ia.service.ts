@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
+import { RagService } from '../rag/rag.service';
 
 export interface ResumoCasoResult {
   titulo: string;
@@ -36,7 +37,10 @@ export class IaService {
   private readonly logger = new Logger(IaService.name);
   private openai: OpenAI;
 
-  constructor(private config: ConfigService) {
+  constructor(
+    private config: ConfigService,
+    private ragService: RagService,
+  ) {
     this.openai = new OpenAI({
       apiKey: this.config.get('OPENAI_API_KEY', ''),
     });
@@ -46,7 +50,24 @@ export class IaService {
     caso: { numero: string; objeto: string; valorCausa: number; categoria: string },
     pecas: Array<{ tipo: string; conteudo?: string }>,
     provas: Array<{ tipo: string; descricao?: string; mimeType?: string }>,
+    arbitragemId?: string,
   ): Promise<AnaliseProvasResult> {
+    // Buscar contexto via RAG
+    let contextoRag = '';
+    if (arbitragemId) {
+      try {
+        const chunks = await this.ragService.buscarContexto(
+          arbitragemId,
+          `Analise: ${caso.objeto}`,
+          15,
+        );
+        if (chunks.length > 0) {
+          contextoRag = '\n\nCONTEUDO EXTRAIDO DOS DOCUMENTOS (busca semantica):\n' +
+            chunks.map((c, i) => `[${c.metadata?.parteRole || 'Parte'}] ${c.content}`).join('\n\n');
+        }
+      } catch {} // silenciar se RAG falhar
+    }
+
     const prompt = `Voce e um assistente juridico especializado em arbitragem brasileira (Lei 9.307/96).
 
 Analise as provas e pecas do caso abaixo e determine se sao SUFICIENTES para proferir sentenca.
@@ -61,7 +82,7 @@ PECAS PROTOCOLADAS (${pecas.length}):
 ${pecas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.conteudo?.substring(0, 200) || '(sem texto)'}`).join('\n')}
 
 PROVAS ENVIADAS (${provas.length}):
-${provas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.descricao || '(sem descricao)'} (${p.mimeType || 'desconhecido'})`).join('\n')}
+${provas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.descricao || '(sem descricao)'} (${p.mimeType || 'desconhecido'})`).join('\n')}${contextoRag}
 
 Responda EXCLUSIVAMENTE em JSON valido:
 {
@@ -96,7 +117,24 @@ Responda EXCLUSIVAMENTE em JSON valido:
     caso: { numero: string; objeto: string; valorCausa: number; categoria: string },
     pecas: Array<{ tipo: string; conteudo?: string }>,
     provas: Array<{ tipo: string; descricao?: string }>,
+    arbitragemId?: string,
   ): Promise<SentencaGerada> {
+    // Buscar contexto via RAG
+    let contextoRag = '';
+    if (arbitragemId) {
+      try {
+        const chunks = await this.ragService.buscarContexto(
+          arbitragemId,
+          `Sentenca arbitral: ${caso.objeto}`,
+          15,
+        );
+        if (chunks.length > 0) {
+          contextoRag = '\n\nCONTEUDO EXTRAIDO DOS DOCUMENTOS (busca semantica):\n' +
+            chunks.map((c, i) => `[${c.metadata?.parteRole || 'Parte'}] ${c.content}`).join('\n\n');
+        }
+      } catch {} // silenciar se RAG falhar
+    }
+
     const prompt = `Voce e um arbitro virtual assistente, especializado em arbitragem brasileira conforme Lei 9.307/96.
 
 Gere um PROJETO de sentenca arbitral para o caso abaixo. Este e apenas um PROJETO que sera revisado por um arbitro humano.
@@ -111,7 +149,7 @@ PECAS:
 ${pecas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.conteudo?.substring(0, 500) || '(anexo)'}`).join('\n')}
 
 PROVAS:
-${provas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.descricao || '(sem descricao)'}`).join('\n')}
+${provas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.descricao || '(sem descricao)'}`).join('\n')}${contextoRag}
 
 REGRAS:
 - Aplique Lei 9.307/96, equidade, usos e costumes
@@ -187,7 +225,24 @@ Responda EXCLUSIVAMENTE em JSON valido:
     caso: { numero: string; objeto: string; valorCausa: number; categoria: string; status: string },
     pecas: Array<{ tipo: string; conteudo?: string }>,
     provas: Array<{ tipo: string; descricao?: string }>,
+    arbitragemId?: string,
   ): Promise<ResumoCasoResult> {
+    // Buscar contexto via RAG
+    let contextoRag = '';
+    if (arbitragemId) {
+      try {
+        const chunks = await this.ragService.buscarContexto(
+          arbitragemId,
+          `Resumo do caso: ${caso.objeto}`,
+          15,
+        );
+        if (chunks.length > 0) {
+          contextoRag = '\n\nCONTEUDO EXTRAIDO DOS DOCUMENTOS (busca semantica):\n' +
+            chunks.map((c, i) => `[${c.metadata?.parteRole || 'Parte'}] ${c.content}`).join('\n\n');
+        }
+      } catch {} // silenciar se RAG falhar
+    }
+
     const prompt = `Voce e um assistente juridico especializado em arbitragem brasileira (Lei 9.307/96).
 
 Gere um RESUMO EXECUTIVO do caso abaixo para uso interno do arbitro/administrador.
@@ -203,7 +258,7 @@ PECAS PROTOCOLADAS (${pecas.length}):
 ${pecas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.conteudo?.substring(0, 300) || '(sem texto)'}`).join('\n')}
 
 PROVAS ENVIADAS (${provas.length}):
-${provas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.descricao || '(sem descricao)'}`).join('\n')}
+${provas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.descricao || '(sem descricao)'}`).join('\n')}${contextoRag}
 
 Responda EXCLUSIVAMENTE em JSON valido:
 {

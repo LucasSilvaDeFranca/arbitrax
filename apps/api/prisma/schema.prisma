@@ -261,6 +261,7 @@ model Prova {
   hashSha256    String    @map("hash_sha256")
   mimeType      String?   @map("mime_type")
   tamanho       Int?
+  textoExtraido String?  @map("texto_extraido") @db.Text
   createdAt     DateTime  @default(now()) @map("created_at")
 
   arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])

@@ -54,6 +54,7 @@ export class SentencaService {
       },
       pecas.map((p) => ({ tipo: p.tipo, conteudo: p.conteudo || undefined })),
       provas.map((p) => ({ tipo: p.tipo, descricao: p.descricao || undefined })),
+      arbitragemId,
     );
 
     const conteudoTexto = JSON.stringify(resultado);
@@ -292,6 +293,7 @@ export class SentencaService {
       },
       pecas.map((p) => ({ tipo: p.tipo, conteudo: p.conteudo || undefined })),
       provas.map((p) => ({ tipo: p.tipo, descricao: p.descricao || undefined, mimeType: p.mimeType || undefined })),
+      arbitragemId,
     );
   }
 

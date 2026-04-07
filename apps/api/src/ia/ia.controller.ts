@@ -51,6 +51,7 @@ export class IaController {
       },
       arbitragem.pecas.map((p: any) => ({ tipo: p.tipo, conteudo: p.conteudo || undefined })),
       arbitragem.provas.map((p: any) => ({ tipo: p.tipo, descricao: p.descricao || undefined })),
+      arbitragemId,
     );
 
     return resumo;
