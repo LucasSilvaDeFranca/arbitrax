@@ -38,7 +38,7 @@ export class ChatIaService {
     return sanitized.trim();
   }
 
-  async responderPergunta(arbitragemId: string, canal: string, pergunta: string): Promise<string> {
+  async responderPergunta(arbitragemId: string, canal: string, pergunta: string, userId?: string): Promise<string> {
     pergunta = this.sanitizePergunta(pergunta);
 
     // 1. Load case context
@@ -55,9 +55,16 @@ export class ChatIaService {
 
     if (!arb) return 'Caso nao encontrado.';
 
-    // 2. Load recent chat history (last 10 msgs from this channel)
+    // 2. Load recent chat history (last 10 msgs from this user's private conversation)
+    const historyWhere: any = { arbitragemId, canal };
+    if (canal === 'privado' && userId) {
+      historyWhere.OR = [
+        { userId },
+        { tipo: 'ia', respondidoParaId: userId },
+      ];
+    }
     const recentMsgs = await this.prisma.chatMessage.findMany({
-      where: { arbitragemId, canal },
+      where: historyWhere,
       orderBy: { createdAt: 'desc' },
       take: 10,
       select: { tipo: true, conteudo: true, user: { select: { nome: true, role: true } } },

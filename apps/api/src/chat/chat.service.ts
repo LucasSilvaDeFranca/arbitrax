@@ -17,10 +17,10 @@ export class ChatService {
   ) {
     await this.checkAccess(arbitragemId, userId, userRole);
 
-    const canal = data.canal || 'processos';
+    const canal = data.canal || 'privado';
 
     if (canal === 'arbitragem' && userRole !== 'ARBITRO' && userRole !== 'ADMIN') {
-      throw new ForbiddenException('Acesso ao Grupo Arbitragem restrito a arbitros');
+      throw new ForbiddenException('Acesso ao canal Analise Juridica restrito a arbitros');
     }
 
     const msg = await this.prisma.chatMessage.create({
@@ -41,7 +41,7 @@ export class ChatService {
   }
 
   /** Enviar mensagem de sistema (notificacoes automaticas no chat) */
-  async sendSystemMessage(arbitragemId: string, conteudo: string, canal: string = 'processos') {
+  async sendSystemMessage(arbitragemId: string, conteudo: string, canal: string = 'privado') {
     // Buscar admin ou usar primeiro user como fallback
     const admin = await this.prisma.user.findFirst({ where: { role: 'ADMIN' } });
     if (!admin) return;
@@ -58,7 +58,7 @@ export class ChatService {
   }
 
   /** Enviar mensagem da IA (userId null) */
-  async sendIaMessage(arbitragemId: string, conteudo: string, canal: string = 'processos') {
+  async sendIaMessage(arbitragemId: string, conteudo: string, canal: string = 'privado', respondidoParaId?: string) {
     return this.prisma.chatMessage.create({
       data: {
         arbitragemId,
@@ -66,6 +66,7 @@ export class ChatService {
         tipo: 'ia',
         conteudo,
         canal,
+        respondidoParaId,
       },
     });
   }
@@ -74,17 +75,27 @@ export class ChatService {
     arbitragemId: string,
     userId: string,
     userRole: string,
-    canal: string = 'processos',
+    canal: string = 'privado',
     cursor?: string,
     limit = 50,
   ) {
     await this.checkAccess(arbitragemId, userId, userRole);
 
     if (canal === 'arbitragem' && userRole !== 'ARBITRO' && userRole !== 'ADMIN') {
-      throw new ForbiddenException('Acesso ao Grupo Arbitragem restrito a arbitros');
+      throw new ForbiddenException('Acesso ao canal Analise Juridica restrito a arbitros');
     }
 
     const where: any = { arbitragemId, canal };
+
+    // For 'privado' canal, each user only sees their own messages + IA responses to them
+    if (canal === 'privado') {
+      where.OR = [
+        { userId },
+        { tipo: 'ia', respondidoParaId: userId },
+        { tipo: 'system' },
+      ];
+    }
+
     if (cursor) {
       where.createdAt = { lt: new Date(cursor) };
     }
@@ -98,12 +109,13 @@ export class ChatService {
       },
     });
 
-    // Marcar como lidas as mensagens de outros usuarios
+    // Marcar como lidas as mensagens da IA direcionadas a este usuario
     await this.prisma.chatMessage.updateMany({
       where: {
         arbitragemId,
         canal,
-        userId: { not: userId },
+        tipo: 'ia',
+        respondidoParaId: userId,
         lida: false,
       },
       data: { lida: true },
@@ -128,13 +140,15 @@ export class ChatService {
     });
 
     const arbIds = arbs.map((a) => a.id);
-    if (!arbIds.length) return { processos: 0, arbitragem: 0 };
+    if (!arbIds.length) return { privado: 0, arbitragem: 0 };
 
-    const processos = await this.prisma.chatMessage.count({
+    // Count unread IA responses directed to this user in 'privado' canal
+    const privado = await this.prisma.chatMessage.count({
       where: {
         arbitragemId: { in: arbIds },
-        canal: 'processos',
-        userId: { not: userId },
+        canal: 'privado',
+        tipo: 'ia',
+        respondidoParaId: userId,
         lida: false,
       },
     });
@@ -151,7 +165,7 @@ export class ChatService {
       });
     }
 
-    return { processos, arbitragem };
+    return { privado, arbitragem };
   }
 
   private async checkAccess(arbitragemId: string, userId: string, userRole: string) {

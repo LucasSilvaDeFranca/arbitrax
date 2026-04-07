@@ -14,7 +14,7 @@ export interface ChatMessage {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const chatApi = {
-  getMessages: (arbitragemId: string, token: string, canal: string = 'processos', cursor?: string) => {
+  getMessages: (arbitragemId: string, token: string, canal: string = 'privado', cursor?: string) => {
     const params = new URLSearchParams();
     params.set('canal', canal);
     if (cursor) params.set('cursor', cursor);
@@ -36,5 +36,5 @@ export const chatApi = {
     }),
 
   getUnread: (token: string) =>
-    api<{ processos: number; arbitragem: number }>('/api/v1/chat/unread', { token }),
+    api<{ privado: number; arbitragem: number }>('/api/v1/chat/unread', { token }),
 };

@@ -352,15 +352,16 @@ model Cobranca {
 // ─── Chat Interno (substitui WhatsApp) ──────────────
 
 model ChatMessage {
-  id            String   @id @default(uuid())
-  arbitragemId  String   @map("arbitragem_id")
-  userId        String?  @map("user_id")
-  tipo          String   @default("text") // text | document | image | video | audio | system | ia
-  canal         String   @default("processos")
-  conteudo      String?
-  mediaUrl      String?  @map("media_url")
-  lida          Boolean  @default(false)
-  createdAt     DateTime @default(now()) @map("created_at")
+  id               String   @id @default(uuid())
+  arbitragemId     String   @map("arbitragem_id")
+  userId           String?  @map("user_id")
+  tipo             String   @default("text") // text | document | image | video | audio | system | ia
+  canal            String   @default("privado")
+  conteudo         String?
+  mediaUrl         String?  @map("media_url")
+  respondidoParaId String?  @map("respondido_para_id")
+  lida             Boolean  @default(false)
+  createdAt        DateTime @default(now()) @map("created_at")
 
   arbitragem    Arbitragem @relation(fields: [arbitragemId], references: [id])
   user          User?      @relation(fields: [userId], references: [id])

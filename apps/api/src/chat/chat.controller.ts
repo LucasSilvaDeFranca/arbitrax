@@ -33,7 +33,7 @@ class SendMessageDto {
   @IsString()
   mediaUrl?: string;
 
-  @ApiPropertyOptional({ example: 'processos' })
+  @ApiPropertyOptional({ example: 'privado' })
   @IsOptional()
   @IsString()
   canal?: string;
@@ -80,7 +80,7 @@ export class ChatController {
       arbitragemId,
       req.user.sub,
       req.user.role,
-      canal || 'processos',
+      canal || 'privado',
       cursor,
       Number(limit) || 50,
     );
@@ -101,7 +101,7 @@ export class ChatController {
       throw new BadRequestException('Pergunta muito longa (max 2000 caracteres)');
     }
 
-    const canal = dto.canal || 'processos';
+    const canal = dto.canal || 'privado';
 
     // Access check
     if (canal === 'arbitragem' && req.user.role !== 'ARBITRO' && req.user.role !== 'ADMIN') {
@@ -115,10 +115,10 @@ export class ChatController {
     });
 
     // Get IA response
-    const resposta = await this.chatIaService.responderPergunta(arbitragemId, canal, dto.pergunta);
+    const resposta = await this.chatIaService.responderPergunta(arbitragemId, canal, dto.pergunta, req.user.sub);
 
-    // Save IA response
-    const iaMsg = await this.chatService.sendIaMessage(arbitragemId, resposta, canal);
+    // Save IA response with respondidoParaId linking to the user who asked
+    const iaMsg = await this.chatService.sendIaMessage(arbitragemId, resposta, canal, req.user.sub);
 
     return iaMsg;
   }
