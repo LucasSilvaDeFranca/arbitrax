@@ -133,6 +133,11 @@ export class ConvitesService {
       throw new BadRequestException('E obrigatorio aceitar as regras de arbitragem para prosseguir.');
     }
 
+    // Validar senha minima
+    if (body?.senha && body.senha.length < 6) {
+      throw new BadRequestException('Senha deve ter pelo menos 6 caracteres');
+    }
+
     // Se requerido nao tem senha e body tem senha, ativar conta
     let authTokens: any = null;
     const requeridoId = convite.arbitragem?.requerido?.id;

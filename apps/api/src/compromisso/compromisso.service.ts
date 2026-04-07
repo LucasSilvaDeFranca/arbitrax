@@ -214,16 +214,24 @@ export class CompromissoService {
     let currentPdfBuffer: Buffer;
     const pdfUrl = compromisso.pdfUrl;
 
+    const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+
     if (pdfUrl.startsWith('/uploads/')) {
       // Local storage
-      const localFilePath = path.join(process.cwd(), pdfUrl);
+      const localFilePath = path.resolve(process.cwd(), pdfUrl.replace(/^\//, ''));
+      if (!localFilePath.startsWith(uploadsRoot)) {
+        throw new BadRequestException('Caminho invalido');
+      }
       if (!fs.existsSync(localFilePath)) {
         throw new BadRequestException('Arquivo PDF nao encontrado no storage');
       }
       currentPdfBuffer = fs.readFileSync(localFilePath);
     } else {
       // S3 or other URL - try local path interpretation
-      const localFilePath = path.join(process.cwd(), 'uploads', pdfUrl.replace(/^\/[^/]+\//, ''));
+      const localFilePath = path.resolve(process.cwd(), 'uploads', pdfUrl.replace(/^\/[^/]+\//, ''));
+      if (!localFilePath.startsWith(uploadsRoot)) {
+        throw new BadRequestException('Caminho invalido');
+      }
       if (fs.existsSync(localFilePath)) {
         currentPdfBuffer = fs.readFileSync(localFilePath);
       } else {
@@ -236,7 +244,7 @@ export class CompromissoService {
       where: { id: userId },
       select: { nome: true },
     });
-    const signerName = user?.nome || cn;
+    const signerName = user?.nome || cn || 'Usuario';
 
     const { signedPdfBuffer, hash } = await this.pdfSignerService.assinarPdf(
       userId,

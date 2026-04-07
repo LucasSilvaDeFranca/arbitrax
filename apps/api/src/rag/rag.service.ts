@@ -43,26 +43,34 @@ export class RagService {
     // 4. Generate embeddings and store
     for (let i = 0; i < chunks.length; i++) {
       const embedding = await this.embeddings.generateEmbedding(chunks[i]);
-      if (embedding.length === 0) continue;
+      if (embedding.length === 0) {
+        this.logger.warn(`Embedding vazio para chunk ${i} da prova ${provaId} (${mimeType}), pulando`);
+        continue;
+      }
 
       const embeddingStr = `[${embedding.join(',')}]`;
 
-      await this.prisma.$executeRawUnsafe(
-        `INSERT INTO document_chunks (arbitragem_id, prova_id, parte_id, chunk_index, content, metadata, embedding)
-         VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6::jsonb, $7::vector)`,
-        metadata.arbitragemId,
-        provaId,
-        metadata.parteId,
-        i,
-        chunks[i],
-        JSON.stringify({
-          parteNome: parte?.nome || 'Desconhecido',
-          parteRole: parte?.role || 'DESCONHECIDO',
-          mimeType,
+      try {
+        await this.prisma.$executeRawUnsafe(
+          `INSERT INTO document_chunks (arbitragem_id, prova_id, parte_id, chunk_index, content, metadata, embedding)
+           VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6::jsonb, $7::vector)`,
+          metadata.arbitragemId,
           provaId,
-        }),
-        embeddingStr,
-      );
+          metadata.parteId,
+          i,
+          chunks[i],
+          JSON.stringify({
+            parteNome: parte?.nome || 'Desconhecido',
+            parteRole: parte?.role || 'DESCONHECIDO',
+            mimeType,
+            provaId,
+          }),
+          embeddingStr,
+        );
+      } catch (err: any) {
+        this.logger.error(`Erro ao inserir chunk ${i} da prova ${provaId}: ${err.message}`);
+        throw err;
+      }
     }
 
     this.logger.log(`${chunks.length} chunks armazenados no pgvector para prova ${provaId}`);
@@ -80,22 +88,33 @@ export class RagService {
 
     const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
-    const results = await this.prisma.$queryRawUnsafe<Array<{
-      content: string;
-      metadata: any;
-      similarity: number;
-    }>>(
-      `SELECT content, metadata, 1 - (embedding <=> $1::vector) as similarity
-       FROM document_chunks
-       WHERE arbitragem_id = $2::uuid
-       ORDER BY embedding <=> $1::vector
-       LIMIT $3`,
-      embeddingStr,
-      arbitragemId,
-      topK,
-    );
+    // Validate embedding format: must be [number,number,...]
+    if (!/^\[-?\d+(\.\d+)?(,-?\d+(\.\d+)?)*\]$/.test(embeddingStr)) {
+      this.logger.error(`Formato de embedding invalido para busca: ${embeddingStr.slice(0, 100)}`);
+      return [];
+    }
 
-    return results;
+    try {
+      const results = await this.prisma.$queryRawUnsafe<Array<{
+        content: string;
+        metadata: any;
+        similarity: number;
+      }>>(
+        `SELECT content, metadata, 1 - (embedding <=> $1::vector) as similarity
+         FROM document_chunks
+         WHERE arbitragem_id = $2::uuid
+         ORDER BY embedding <=> $1::vector
+         LIMIT $3`,
+        embeddingStr,
+        arbitragemId,
+        topK,
+      );
+
+      return results;
+    } catch (err: any) {
+      this.logger.error(`Erro na busca de contexto RAG para arbitragem ${arbitragemId}: ${err.message}`);
+      return [];
+    }
   }
 
   async deletarChunksProva(provaId: string): Promise<void> {

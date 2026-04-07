@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
@@ -92,6 +93,14 @@ export class ChatController {
     @Body() dto: { pergunta: string; canal?: string },
     @Request() req: any,
   ) {
+    // Validate pergunta
+    if (!dto.pergunta || dto.pergunta.trim().length === 0) {
+      throw new BadRequestException('Pergunta obrigatoria');
+    }
+    if (dto.pergunta.length > 2000) {
+      throw new BadRequestException('Pergunta muito longa (max 2000 caracteres)');
+    }
+
     const canal = dto.canal || 'processos';
 
     // Access check
