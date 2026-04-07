@@ -18,6 +18,8 @@ export default function ConvitePage() {
   const [aceiteLei, setAceiteLei] = useState(false);
   const [aceiteEquidade, setAceiteEquidade] = useState(false);
   const [aceiteCostumes, setAceiteCostumes] = useState(false);
+  const [senha, setSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
 
   useEffect(() => {
     fetch(`${API_URL}/api/v1/convites/${token}`)
@@ -28,17 +30,48 @@ export default function ConvitePage() {
   }, [token]);
 
   const handleAceitar = async () => {
+    if (senha && senha !== confirmarSenha) {
+      alert('As senhas nao coincidem');
+      return;
+    }
+    if (senha && senha.length < 6) {
+      alert('A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
     setActing(true);
     try {
       const res = await fetch(`${API_URL}/api/v1/convites/${token}/aceitar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aceiteRegras, aceiteLei, aceiteEquidade, aceiteCostumes }),
+        body: JSON.stringify({ aceiteRegras, aceiteLei, aceiteEquidade, aceiteCostumes, senha: senha || undefined }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: 'Erro desconhecido' }));
         throw new Error(err.message);
       }
+      const data = await res.json();
+
+      // Se conta foi criada, fazer login automatico
+      if (data.contaCriada && data.email && senha) {
+        try {
+          const loginRes = await fetch(`${API_URL}/api/v1/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: data.email, senha }),
+          });
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            if (loginData.accessToken) {
+              localStorage.setItem('accessToken', loginData.accessToken);
+              localStorage.setItem('refreshToken', loginData.refreshToken);
+              localStorage.setItem('user', JSON.stringify(loginData.user));
+              window.location.href = `/arbitragens/${data.arbitragemId}`;
+              return;
+            }
+          }
+        } catch { /* fallback para tela de resultado */ }
+      }
+
       setResultado('aceito');
     } catch (err: any) {
       alert(err.message || 'Erro ao aceitar convite');
@@ -236,14 +269,40 @@ export default function ConvitePage() {
               </ul>
             </div>
 
+            {/* Criar senha (se requerido nao tem conta) */}
+            {convite.status === 'pendente' && (
+              <div className="bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/50 rounded-lg p-4 space-y-3">
+                <p className="font-medium text-gray-800 dark:text-slate-200 text-sm">
+                  Crie sua senha para acessar a plataforma:
+                </p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  Seus dados ({arb.requerido?.nome} - {arb.requerido?.email}) ja estao cadastrados.
+                </p>
+                <input
+                  type="password"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="Criar senha (min. 6 caracteres)"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
+                />
+                <input
+                  type="password"
+                  value={confirmarSenha}
+                  onChange={(e) => setConfirmarSenha(e.target.value)}
+                  placeholder="Confirmar senha"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500"
+                />
+              </div>
+            )}
+
             {convite.status === 'pendente' && (
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleAceitar}
-                  disabled={acting || !aceiteRegras}
+                  disabled={acting || !aceiteRegras || !senha || senha.length < 6 || senha !== confirmarSenha}
                   className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {acting ? '...' : 'Aceitar Arbitragem'}
+                  {acting ? '...' : 'Aceitar e Criar Conta'}
                 </button>
                 <button
                   onClick={handleRecusar}

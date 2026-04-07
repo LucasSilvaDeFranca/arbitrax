@@ -102,7 +102,7 @@ export class ConvitesService {
   /** Aceitar convite (pode ser sem login) */
   async aceitar(
     token: string,
-    body?: { aceiteRegras?: boolean; aceiteLei?: boolean; aceiteEquidade?: boolean; aceiteCostumes?: boolean },
+    body?: { aceiteRegras?: boolean; aceiteLei?: boolean; aceiteEquidade?: boolean; aceiteCostumes?: boolean; senha?: string },
   ) {
     const convite = await this.consultarPorToken(token);
 
@@ -113,6 +113,26 @@ export class ConvitesService {
     // Validar aceite obrigatorio das regras de arbitragem
     if (!body?.aceiteRegras) {
       throw new BadRequestException('E obrigatorio aceitar as regras de arbitragem para prosseguir.');
+    }
+
+    // Se requerido nao tem senha e body tem senha, ativar conta
+    let authTokens: any = null;
+    const requeridoId = convite.arbitragem?.requerido?.id;
+    if (requeridoId && body?.senha) {
+      const requerido = await this.prisma.user.findUnique({ where: { id: requeridoId } });
+      if (requerido && (!requerido.senhaHash || requerido.senhaHash === '')) {
+        const bcrypt = await import('bcryptjs');
+        const senhaHash = await bcrypt.hash(body.senha, 10);
+        await this.prisma.user.update({
+          where: { id: requeridoId },
+          data: { senhaHash, ativo: true },
+        });
+
+        // Gerar JWT tokens para login automatico
+        const { JwtService } = await import('@nestjs/jwt');
+        // Usar import dinamico nao funciona para JwtService, retornar flag para frontend fazer login
+        authTokens = { contaCriada: true, email: requerido.email };
+      }
     }
 
     await this.prisma.convite.update({
@@ -185,7 +205,11 @@ export class ConvitesService {
       });
     }
 
-    return { message: 'Convite aceito com sucesso', arbitragemId: convite.arbitragemId };
+    return {
+      message: 'Convite aceito com sucesso',
+      arbitragemId: convite.arbitragemId,
+      ...(authTokens || {}),
+    };
   }
 
   /** Recusar convite */
