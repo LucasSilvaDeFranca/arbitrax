@@ -55,6 +55,21 @@ export class ChatIaService {
 
     if (!arb) return 'Caso nao encontrado.';
 
+    // 1a. Load all provas (direct listing - independent of RAG similarity)
+    const provasList = await this.prisma.prova.findMany({
+      where: { arbitragemId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        tipo: true,
+        descricao: true,
+        mimeType: true,
+        createdAt: true,
+        textoExtraido: true,
+        parte: { select: { nome: true, role: true } },
+      },
+    });
+
     // 1b. Identify who is asking
     let userNome = 'Usuario';
     let userRole = 'DESCONHECIDO';
@@ -102,15 +117,35 @@ export class ChatIaService {
       return `${m.user?.nome || 'Usuario'} (${m.user?.role || ''}): ${m.conteudo}`;
     }).join('\n');
 
-    // 3. RAG context
+    // 3. RAG context (semantic search on user question)
     let contextoRag = '';
+    let chunksCount = 0;
     try {
       const chunks = await this.ragService.buscarContexto(arbitragemId, pergunta, 8);
+      chunksCount = chunks.length;
       if (chunks.length > 0) {
-        contextoRag = '\n\nDOCUMENTOS RELEVANTES:\n' +
-          chunks.map(c => `[${c.metadata?.parteRole || 'Parte'}] ${c.content}`).join('\n\n');
+        contextoRag = '\n\nTRECHOS RELEVANTES DOS DOCUMENTOS (busca semantica):\n' +
+          chunks.map((c, i) => `[Trecho ${i + 1}] [${c.metadata?.parteRole || 'Parte'} - ${c.metadata?.parteNome || ''}]\n${c.content}`).join('\n\n---\n\n');
       }
-    } catch {}
+    } catch (err: any) {
+      this.logger.warn(`Erro RAG buscarContexto: ${err.message}`);
+    }
+
+    // 3b. Direct listing of all provas (always included, regardless of RAG)
+    let provasListagem = '';
+    if (provasList.length > 0) {
+      provasListagem = '\n\nPROVAS/DOCUMENTOS ANEXADOS AO CASO (lista completa):\n' +
+        provasList.map((p, i) => {
+          const data = new Date(p.createdAt).toLocaleDateString('pt-BR');
+          const indexado = p.textoExtraido ? 'sim' : 'nao';
+          const preview = p.textoExtraido ? ` | Resumo: ${p.textoExtraido.slice(0, 200)}...` : '';
+          return `${i + 1}. [${p.tipo}] ${p.descricao || 'sem descricao'} - enviado por ${p.parte?.nome} (${p.parte?.role}) em ${data} | tipo: ${p.mimeType} | indexado p/ busca: ${indexado}${preview}`;
+        }).join('\n');
+    } else {
+      provasListagem = '\n\nNenhuma prova/documento foi anexado ao caso ainda.';
+    }
+
+    this.logger.log(`IA chat: ${provasList.length} provas totais, ${chunksCount} chunks RAG para pergunta`);
 
     // 4. Build system prompt based on canal
     const prazosInfo = arb.prazos.map(p => `${p.tipo}: vence em ${new Date(p.fim).toLocaleDateString('pt-BR')}`).join(', ');
@@ -124,6 +159,13 @@ Forneca analise aprofundada das provas, sugira fundamentacao juridica (Lei 9.307
 Discuta pontos criticos, identifique fortalezas e fraquezas dos argumentos de cada parte.
 Seja detalhado e tecnico. Use linguagem juridica formal.
 
+IMPORTANTE - ACESSO AOS DOCUMENTOS:
+Voce TEM acesso completo aos documentos e provas deste caso atraves das secoes "PROVAS/DOCUMENTOS ANEXADOS" e "TRECHOS RELEVANTES DOS DOCUMENTOS" abaixo.
+SEMPRE use essas informacoes para responder perguntas sobre o conteudo dos documentos.
+Se o usuario perguntar "quais provas foram anexadas?" ou "o que diz o documento X?", consulte essas secoes.
+Cite de qual documento/parte voce esta extraindo cada informacao.
+Se a secao de trechos nao tiver o conteudo especifico pedido mas a lista de provas mostrar que o documento existe, diga que o documento existe mas voce precisa de uma pergunta mais especifica para buscar o trecho.
+
 VOCE ESTA CONVERSANDO COM: ${userNome} (${userRole}) - papel no caso: ${userPapelNoCaso}
 
 CASO: ${arb.numero} | ${arb.objeto}
@@ -132,14 +174,22 @@ Status: ${arb.status}
 Requerente: ${arb.requerente?.nome} | Requerido: ${arb.requerido?.nome}
 Pecas: ${arb._count.pecas} | Provas: ${arb._count.provas}
 ${prazosInfo ? `Prazos ativos: ${prazosInfo}` : 'Sem prazos ativos'}
-${contextoRag}${antiInjection}`;
+${provasListagem}${contextoRag}${antiInjection}`;
     } else {
-      systemPrompt = `Voce e um assistente da plataforma ArbitraX que orienta as partes sobre o procedimento arbitral.
+      systemPrompt = `Voce e um assistente da plataforma ArbitraX que ajuda as partes sobre o procedimento arbitral e o conteudo do caso.
 Responda de forma clara, educada e acessivel.
-Oriente sobre: status do caso, prazos, documentos necessarios, proximos passos.
-NUNCA revele analises internas, estrategias do arbitro, ou conteudo de sentencas em andamento.
+Oriente sobre: status do caso, prazos, documentos anexados, proximos passos, e conteudo das provas/documentos.
+NUNCA revele analises internas do arbitro, estrategias, ou conteudo de sentencas em andamento.
 NUNCA tome partido - seja imparcial.
 Trate o usuario pelo nome e adapte suas respostas conforme o papel dele no caso.
+
+IMPORTANTE - ACESSO AOS DOCUMENTOS:
+Voce TEM acesso aos documentos e provas anexados neste caso atraves das secoes "PROVAS/DOCUMENTOS ANEXADOS" e "TRECHOS RELEVANTES DOS DOCUMENTOS" abaixo.
+SEMPRE use essas informacoes para responder perguntas sobre o que foi anexado ao caso.
+Se o usuario perguntar "quais provas anexei?" ou "o que diz meu contrato?", consulte essas secoes e responda com base nelas.
+Quando listar provas, mostre descricao, tipo e quem enviou.
+Se a secao de trechos nao tiver o conteudo especifico pedido mas a lista de provas mostrar que o documento existe, diga que o documento existe e peca uma pergunta mais especifica sobre o conteudo.
+NAO diga "nao tenho acesso aos documentos" - voce TEM acesso conforme as secoes abaixo.
 
 VOCE ESTA CONVERSANDO COM: ${userNome} (${userRole}) - papel no caso: ${userPapelNoCaso}
 ${userPapelNoCaso === 'requerente (autor)' ? 'Este usuario ABRIU o caso. Oriente-o sobre seus direitos como autor e proximos passos.' : ''}
@@ -152,7 +202,7 @@ Status: ${arb.status}
 Requerente: ${arb.requerente?.nome} | Requerido: ${arb.requerido?.nome}
 Pecas protocoladas: ${arb._count.pecas} | Provas enviadas: ${arb._count.provas}
 ${prazosInfo ? `Prazos ativos: ${prazosInfo}` : 'Sem prazos ativos'}
-${contextoRag}${antiInjection}`;
+${provasListagem}${contextoRag}${antiInjection}`;
     }
 
     // 5. Call OpenAI
@@ -168,10 +218,10 @@ ${contextoRag}${antiInjection}`;
       messages.push({ role: 'user', content: pergunta });
 
       const response = await this.openai.chat.completions.create({
-        model: this.config.get('AI_MODEL', 'gpt-4o'),
+        model: this.config.get('AI_MODEL', 'gpt-4.1'),
         messages,
         temperature: canal === 'arbitragem' ? 0.4 : 0.3,
-        max_tokens: canal === 'arbitragem' ? 2000 : 1000,
+        max_tokens: canal === 'arbitragem' ? 2000 : 1200,
       });
 
       return response.choices[0]?.message?.content || 'Nao foi possivel gerar resposta.';

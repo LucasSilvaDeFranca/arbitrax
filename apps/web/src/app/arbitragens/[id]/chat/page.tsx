@@ -18,7 +18,6 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
   const [askingIa, setAskingIa] = useState(false);
   const [activeCanal, setActiveCanal] = useState<Canal>('privado');
 
@@ -49,20 +48,6 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!token || !newMsg.trim()) return;
-    setSending(true);
-    try {
-      await chatApi.send(id, { conteudo: newMsg.trim(), canal: activeCanal }, token);
-      setNewMsg('');
-      await loadMessages();
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setSending(false);
-    }
-  };
-
   const handleAskIa = async () => {
     if (!token || !newMsg.trim()) return;
     setAskingIa(true);
@@ -80,7 +65,7 @@ export default function ChatPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      handleAskIa();
     }
   };
 
@@ -242,18 +227,11 @@ export default function ChatPage() {
             />
             <button
               onClick={handleAskIa}
-              disabled={askingIa || sending || !newMsg.trim()}
-              title="Perguntar a IA"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium whitespace-nowrap"
+              disabled={askingIa || !newMsg.trim()}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium whitespace-nowrap flex items-center gap-2"
             >
-              {askingIa ? 'IA...' : '\u{1F916} IA'}
-            </button>
-            <button
-              onClick={handleSend}
-              disabled={sending || askingIa || !newMsg.trim()}
-              className="px-6 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition disabled:opacity-50"
-            >
-              Enviar
+              <span>{'\u{1F916}'}</span>
+              {askingIa ? 'Analisando...' : 'Enviar'}
             </button>
           </div>
         </div>

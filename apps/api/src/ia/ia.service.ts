@@ -94,7 +94,7 @@ Responda EXCLUSIVAMENTE em JSON valido:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: this.config.get('AI_MODEL', 'gpt-4o'),
+        model: this.config.get('AI_MODEL', 'gpt-4.1'),
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         response_format: { type: 'json_object' },
@@ -168,7 +168,7 @@ Responda EXCLUSIVAMENTE em JSON valido:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: this.config.get('AI_MODEL', 'gpt-4o'),
+        model: this.config.get('AI_MODEL', 'gpt-4.1'),
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         response_format: { type: 'json_object' },
@@ -207,7 +207,7 @@ Responda EXCLUSIVAMENTE em JSON valido:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: this.config.get('AI_MODEL', 'gpt-4o'),
+        model: this.config.get('AI_MODEL', 'gpt-4.1'),
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         response_format: { type: 'json_object' },
@@ -272,7 +272,7 @@ Responda EXCLUSIVAMENTE em JSON valido:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: this.config.get('AI_MODEL', 'gpt-4o'),
+        model: this.config.get('AI_MODEL', 'gpt-4.1'),
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         response_format: { type: 'json_object' },
