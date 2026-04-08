@@ -146,9 +146,8 @@ export class ProvasService {
       if (!isParticipant) throw new ForbiddenException('Sem acesso');
     }
 
-    // Extrair key do arquivoUrl (remover o /bucket/ prefix)
-    const key = prova.arquivoUrl.replace(`/arbitrax-documents/`, '');
-    const signedUrl = await this.storage.getSignedDownloadUrl(key);
+    // StorageService aceita URL/key diretamente (extrai key internamente)
+    const signedUrl = await this.storage.getSignedDownloadUrl(prova.arquivoUrl);
 
     return { url: signedUrl, hash: prova.hashSha256, mimeType: prova.mimeType };
   }
