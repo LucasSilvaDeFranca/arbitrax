@@ -66,6 +66,60 @@ export async function api<T = any>(endpoint: string, options: ApiOptions = {}): 
   return res.json();
 }
 
+/**
+ * Download autenticado: faz GET com Bearer token, recebe o blob e abre/baixa.
+ * Necessario para endpoints protegidos por JWT (tag <a href> nao pode enviar Authorization header).
+ */
+export async function downloadAuthenticatedFile(
+  endpoint: string,
+  token: string,
+  filename?: string,
+): Promise<void> {
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  let res = await fetch(`${API_URL}${endpoint}`, { headers });
+
+  if (res.status === 401) {
+    const newToken = await tryRefreshToken();
+    if (!newToken) {
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+      throw new Error('Sessao expirada. Faca login novamente.');
+    }
+    headers['Authorization'] = `Bearer ${newToken}`;
+    res = await fetch(`${API_URL}${endpoint}`, { headers });
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    let msg = `Erro ao baixar arquivo (HTTP ${res.status})`;
+    try {
+      const json = JSON.parse(text);
+      if (json.message) msg = json.message;
+    } catch { /* not json */ }
+    throw new Error(msg);
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+
+  // Abre em nova aba (browser decide se baixa ou visualiza)
+  const win = window.open(url, '_blank');
+  if (!win) {
+    // Popup bloqueado - forcar download programatico
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'documento.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // Libera memoria apos 1 minuto
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 export const authApi = {
   register: (data: {
     nome: string;

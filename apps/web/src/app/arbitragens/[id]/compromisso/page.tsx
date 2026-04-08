@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
-import { api } from '@/lib/api';
+import { api, downloadAuthenticatedFile } from '@/lib/api';
 import AuthLayout from '@/components/AuthLayout';
 
 interface Compromisso {
@@ -105,6 +105,19 @@ export default function CompromissoPage() {
     load();
     loadArbitragem();
   }, [id]);
+
+  const handleDownloadPdf = async () => {
+    if (!token) return;
+    try {
+      await downloadAuthenticatedFile(
+        `/api/v1/arbitragens/${id}/compromisso/pdf`,
+        token,
+        `compromisso-${id}.pdf`,
+      );
+    } catch (err: any) {
+      alert(err.message || 'Erro ao baixar PDF');
+    }
+  };
 
   const handleGerar = async () => {
     if (!token) return;
@@ -217,17 +230,15 @@ export default function CompromissoPage() {
               {compromisso.pdfUrl && (
                 <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
                   <h2 className="font-semibold text-gray-800 dark:text-slate-100 mb-3">Documento PDF</h2>
-                  <a
-                    href={`${API_URL}/api/v1/arbitragens/${id}/compromisso/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={handleDownloadPdf}
                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium text-sm"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     {bothSigned ? 'Baixar Compromisso Assinado (PDF)' : 'Baixar Termo de Compromisso (PDF)'}
-                  </a>
+                  </button>
                 </div>
               )}
 
@@ -343,17 +354,15 @@ export default function CompromissoPage() {
                   <p className="text-green-700 dark:text-green-300 font-semibold text-lg">Compromisso assinado por ambas as partes</p>
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">O caso esta em andamento.</p>
                   {compromisso.pdfUrl && (
-                    <a
-                      href={`${API_URL}/api/v1/arbitragens/${id}/compromisso/pdf`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={handleDownloadPdf}
                       className="inline-flex items-center gap-2 mt-4 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-sm"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       Baixar Compromisso Assinado
-                    </a>
+                    </button>
                   )}
                 </div>
               )}

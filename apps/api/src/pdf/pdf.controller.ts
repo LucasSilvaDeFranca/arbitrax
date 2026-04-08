@@ -4,25 +4,27 @@ import {
   Param,
   Res,
   UseGuards,
-  Request,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PdfService } from './pdf.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import * as fs from 'fs';
-import * as path from 'path';
 
 @ApiTags('PDF Downloads')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/arbitragens/:arbitragemId')
 export class PdfController {
+  private readonly logger = new Logger(PdfController.name);
+
   constructor(
     private pdfService: PdfService,
     private prisma: PrismaService,
+    private storage: StorageService,
   ) {}
 
   @Get('compromisso/pdf')
@@ -45,23 +47,8 @@ export class PdfController {
 
     // If a stored PDF exists, serve it directly (includes signed versions)
     if (arb.compromisso?.pdfUrl) {
-      let storedBuffer: Buffer | null = null;
-      const pdfUrl = arb.compromisso.pdfUrl;
-
-      if (pdfUrl.startsWith('/uploads/')) {
-        const localFilePath = path.join(process.cwd(), pdfUrl);
-        if (fs.existsSync(localFilePath)) {
-          storedBuffer = fs.readFileSync(localFilePath);
-        }
-      } else {
-        // Try interpreting as relative storage path
-        const localFilePath = path.join(process.cwd(), 'uploads', pdfUrl.replace(/^\/[^/]+\//, ''));
-        if (fs.existsSync(localFilePath)) {
-          storedBuffer = fs.readFileSync(localFilePath);
-        }
-      }
-
-      if (storedBuffer) {
+      try {
+        const storedBuffer = await this.storage.getBuffer(arb.compromisso.pdfUrl);
         res.set({
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="compromisso-${arb.numero}.pdf"`,
@@ -69,6 +56,10 @@ export class PdfController {
         });
         res.end(storedBuffer);
         return;
+      } catch (err: any) {
+        this.logger.warn(
+          `Falha ao ler PDF armazenado (${arb.compromisso.pdfUrl}): ${err.message}. Gerando on-the-fly.`,
+        );
       }
     }
 
