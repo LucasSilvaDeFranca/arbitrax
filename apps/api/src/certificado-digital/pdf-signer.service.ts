@@ -344,7 +344,8 @@ export class PdfSignerService {
       color: rgb(0.5, 0.5, 0.5),
     });
 
-    const pdfBytes = await pdfDoc.save();
+    // useObjectStreams: false para o PDF ser assinavel por @signpdf depois
+    const pdfBytes = await pdfDoc.save({ useObjectStreams: false });
     return Buffer.from(pdfBytes);
   }
 
@@ -448,7 +449,9 @@ export class PdfSignerService {
       color: rgb(0.1, 0.2, 0.5),
     });
 
-    const pdfBytes = await pdfDoc.save();
+    // useObjectStreams: false e obrigatorio pra compatibilidade com @signpdf.
+    // Sem isso, signpdf falha com "Expected xref at NaN but found other content".
+    const pdfBytes = await pdfDoc.save({ useObjectStreams: false });
     return Buffer.from(pdfBytes);
   }
 

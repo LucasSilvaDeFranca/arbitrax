@@ -98,11 +98,12 @@ export class StorageService implements OnModuleInit {
     const hash = crypto.createHash('sha256').update(file).digest('hex');
 
     if (this.mode === 'supabase') {
+      // upsert: true permite sobrescrever arquivo existente na mesma key
+      // (usado em fluxos como assinatura digital, que re-upload o PDF modificado)
       const { error } = await this.supabase.storage
         .from(this.bucket)
-        .upload(key, file, { contentType, upsert: false });
+        .upload(key, file, { contentType, upsert: true });
       if (error) throw new Error(`Supabase upload falhou: ${error.message}`);
-      // URL tagged com prefixo 'supabase://' para routing em getBuffer
       return { url: `supabase://${key}`, hash };
     }
 
