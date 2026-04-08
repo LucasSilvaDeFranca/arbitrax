@@ -6,6 +6,7 @@ export const EVENTS = {
   ARBITRAGEM_CRIADA: 'arbitragem.criada',
   CONVITE_ACEITO: 'convite.aceito',
   COMPROMISSO_ASSINADO: 'compromisso.assinado',
+  PECA_PROTOCOLADA: 'peca.protocolada',
   SENTENCA_RATIFICADA: 'sentenca.ratificada',
   PRAZO_EXPIRADO: 'prazo.expirado',
 } as const;
@@ -34,6 +35,17 @@ export interface CompromissoAssinadoEvent {
   numero: string;
   requerenteId: string;
   requeridoId: string;
+}
+
+export interface PecaProtocoladaEvent {
+  arbitragemId: string;
+  numero: string;
+  pecaId: string;
+  tipo: string; // PecaTipo: PETICAO_INICIAL | CONTESTACAO | REPLICA | TREPLICA | ALEGACOES_FINAIS | OUTROS
+  autorId: string;
+  autorNome: string;
+  requerenteId: string;
+  requeridoId: string | null;
 }
 
 export interface SentencaRatificadaEvent {
@@ -72,6 +84,11 @@ export class EventsService {
   emitCompromissoAssinado(payload: CompromissoAssinadoEvent) {
     this.logger.log(`Emitting ${EVENTS.COMPROMISSO_ASSINADO}: ${payload.numero}`);
     this.eventEmitter.emit(EVENTS.COMPROMISSO_ASSINADO, payload);
+  }
+
+  emitPecaProtocolada(payload: PecaProtocoladaEvent) {
+    this.logger.log(`Emitting ${EVENTS.PECA_PROTOCOLADA}: ${payload.numero} tipo=${payload.tipo}`);
+    this.eventEmitter.emit(EVENTS.PECA_PROTOCOLADA, payload);
   }
 
   emitSentencaRatificada(payload: SentencaRatificadaEvent) {

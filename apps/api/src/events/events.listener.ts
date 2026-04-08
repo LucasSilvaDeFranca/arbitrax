@@ -6,6 +6,8 @@ import {
   EVENTS,
   ArbitragemCriadaEvent,
   ConviteAceitoEvent,
+  CompromissoAssinadoEvent,
+  PecaProtocoladaEvent,
   SentencaRatificadaEvent,
   PrazoExpiradoEvent,
 } from './events.service';
@@ -107,6 +109,225 @@ export class EventsListener {
     } catch (err: any) {
       this.logger.error(
         `Error handling convite.aceito: ${err.message}`,
+        err.stack,
+      );
+    }
+  }
+
+  /**
+   * compromisso.assinado -> EM_INSTRUCAO -> AGUARDANDO_PETICAO
+   * Cria prazo de 15 dias para requerente protocolar peticao inicial + notifica.
+   */
+  @OnEvent(EVENTS.COMPROMISSO_ASSINADO)
+  async handleCompromissoAssinado(event: CompromissoAssinadoEvent) {
+    this.logger.log(`Handling ${EVENTS.COMPROMISSO_ASSINADO}: ${event.numero}`);
+
+    try {
+      // 1. Transicionar arbitragem para AGUARDANDO_PETICAO
+      await this.prisma.arbitragem.update({
+        where: { id: event.arbitragemId },
+        data: { status: 'AGUARDANDO_PETICAO' },
+      });
+
+      // 2. Criar prazo de 15 dias para o requerente protocolar peticao inicial
+      const fim = new Date();
+      fim.setDate(fim.getDate() + 15);
+      await this.prisma.prazo.create({
+        data: {
+          arbitragemId: event.arbitragemId,
+          tipo: 'PETICAO',
+          parteId: event.requerenteId,
+          fim,
+          status: 'ATIVO',
+        },
+      });
+
+      // 3. Notificacao in-app para o requerente
+      await this.prisma.notificacao.create({
+        data: {
+          userId: event.requerenteId,
+          titulo: 'Compromisso assinado - protocolar peticao inicial',
+          mensagem: `O compromisso do caso ${event.numero} foi assinado por ambas as partes. Voce tem 15 dias para protocolar a peticao inicial.`,
+          tipo: 'sistema',
+          link: `/arbitragens/${event.arbitragemId}/documentos`,
+        },
+      });
+
+      // 4. Email para o requerente
+      const requerente = await this.prisma.user.findUnique({
+        where: { id: event.requerenteId },
+        select: { email: true, nome: true },
+      });
+      if (requerente) {
+        await this.emailService.enviarNotificacaoPrazo(
+          requerente.email,
+          requerente.nome,
+          {
+            tipo: 'PETICAO_INICIAL',
+            diasRestantes: 15,
+            casoNumero: event.numero,
+          },
+        ).catch((err) => this.logger.warn(`Email peticao falhou: ${err.message}`));
+      }
+
+      this.logger.log(
+        `[compromisso.assinado] ${event.numero}: status -> AGUARDANDO_PETICAO, prazo 15d criado`,
+      );
+    } catch (err: any) {
+      this.logger.error(
+        `Error handling compromisso.assinado: ${err.message}`,
+        err.stack,
+      );
+    }
+  }
+
+  /**
+   * peca.protocolada -> avanca status conforme tipo da peca
+   * PETICAO_INICIAL  -> AGUARDANDO_PETICAO    -> AGUARDANDO_CONTESTACAO (+ prazo 15d requerido)
+   * CONTESTACAO      -> AGUARDANDO_CONTESTACAO -> ANALISE_PROVAS (+ notifica arbitros)
+   */
+  @OnEvent(EVENTS.PECA_PROTOCOLADA)
+  async handlePecaProtocolada(event: PecaProtocoladaEvent) {
+    this.logger.log(
+      `Handling ${EVENTS.PECA_PROTOCOLADA}: ${event.numero} tipo=${event.tipo}`,
+    );
+
+    try {
+      const arb = await this.prisma.arbitragem.findUnique({
+        where: { id: event.arbitragemId },
+        select: { status: true },
+      });
+      if (!arb) return;
+
+      // Caso 1: PETICAO_INICIAL quando status = AGUARDANDO_PETICAO
+      if (event.tipo === 'PETICAO_INICIAL' && arb.status === 'AGUARDANDO_PETICAO') {
+        // Marca prazo PETICAO como cumprido
+        await this.prisma.prazo.updateMany({
+          where: {
+            arbitragemId: event.arbitragemId,
+            tipo: 'PETICAO',
+            status: 'ATIVO',
+          },
+          data: { status: 'CUMPRIDO' },
+        });
+
+        // Transiciona status
+        await this.prisma.arbitragem.update({
+          where: { id: event.arbitragemId },
+          data: { status: 'AGUARDANDO_CONTESTACAO' },
+        });
+
+        // Cria prazo de 15 dias para requerido contestar (se tiver requerido)
+        if (event.requeridoId) {
+          const fim = new Date();
+          fim.setDate(fim.getDate() + 15);
+          await this.prisma.prazo.create({
+            data: {
+              arbitragemId: event.arbitragemId,
+              tipo: 'CONTESTACAO',
+              parteId: event.requeridoId,
+              fim,
+              status: 'ATIVO',
+            },
+          });
+
+          // Notifica requerido
+          await this.prisma.notificacao.create({
+            data: {
+              userId: event.requeridoId,
+              titulo: 'Peticao inicial protocolada - apresentar contestacao',
+              mensagem: `A peticao inicial do caso ${event.numero} foi protocolada por ${event.autorNome}. Voce tem 15 dias para apresentar contestacao.`,
+              tipo: 'sistema',
+              link: `/arbitragens/${event.arbitragemId}/documentos`,
+            },
+          });
+
+          // Email
+          const requerido = await this.prisma.user.findUnique({
+            where: { id: event.requeridoId },
+            select: { email: true, nome: true },
+          });
+          if (requerido) {
+            await this.emailService.enviarNotificacaoPrazo(
+              requerido.email,
+              requerido.nome,
+              {
+                tipo: 'CONTESTACAO',
+                diasRestantes: 15,
+                casoNumero: event.numero,
+              },
+            ).catch((err) => this.logger.warn(`Email contestacao falhou: ${err.message}`));
+          }
+        }
+
+        this.logger.log(
+          `[peca.protocolada] ${event.numero}: PETICAO_INICIAL -> AGUARDANDO_CONTESTACAO`,
+        );
+        return;
+      }
+
+      // Caso 2: CONTESTACAO quando status = AGUARDANDO_CONTESTACAO
+      if (event.tipo === 'CONTESTACAO' && arb.status === 'AGUARDANDO_CONTESTACAO') {
+        // Marca prazo CONTESTACAO como cumprido
+        await this.prisma.prazo.updateMany({
+          where: {
+            arbitragemId: event.arbitragemId,
+            tipo: 'CONTESTACAO',
+            status: 'ATIVO',
+          },
+          data: { status: 'CUMPRIDO' },
+        });
+
+        // Transiciona status
+        await this.prisma.arbitragem.update({
+          where: { id: event.arbitragemId },
+          data: { status: 'ANALISE_PROVAS' },
+        });
+
+        // Notifica arbitros designados
+        const arbitros = await this.prisma.arbitragemArbitro.findMany({
+          where: { arbitragemId: event.arbitragemId },
+          select: { arbitroId: true, arbitro: { select: { email: true, nome: true } } },
+        });
+
+        for (const a of arbitros) {
+          await this.prisma.notificacao.create({
+            data: {
+              userId: a.arbitroId,
+              titulo: 'Caso pronto para analise',
+              mensagem: `O caso ${event.numero} recebeu a contestacao. Analise as pecas e provas e gere a sentenca quando apropriado.`,
+              tipo: 'sistema',
+              link: `/arbitragens/${event.arbitragemId}`,
+            },
+          });
+        }
+
+        // Tambem notifica as partes que o caso esta em analise
+        const partesIds = [event.requerenteId, event.requeridoId].filter(Boolean) as string[];
+        for (const parteId of partesIds) {
+          await this.prisma.notificacao.create({
+            data: {
+              userId: parteId,
+              titulo: 'Caso em analise',
+              mensagem: `O caso ${event.numero} agora esta em analise pelo arbitro. Aguarde a sentenca.`,
+              tipo: 'sistema',
+              link: `/arbitragens/${event.arbitragemId}`,
+            },
+          });
+        }
+
+        this.logger.log(
+          `[peca.protocolada] ${event.numero}: CONTESTACAO -> ANALISE_PROVAS (${arbitros.length} arbitros notificados)`,
+        );
+        return;
+      }
+
+      this.logger.log(
+        `[peca.protocolada] ${event.numero}: nenhuma transicao aplicavel (tipo=${event.tipo}, status=${arb.status})`,
+      );
+    } catch (err: any) {
+      this.logger.error(
+        `Error handling peca.protocolada: ${err.message}`,
         err.stack,
       );
     }

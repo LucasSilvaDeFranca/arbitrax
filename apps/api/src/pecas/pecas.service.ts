@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { EventsService } from '../events/events.service';
 import { CreatePecaDto } from './dto/create-peca.dto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class PecasService {
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
+    private events: EventsService,
   ) {}
 
   async create(
@@ -69,6 +71,18 @@ export class PecasService {
         entidadeId: peca.id,
         dadosDepois: { tipo: dto.tipo, arbitragemId },
       },
+    });
+
+    // Emitir evento para avancar status da arbitragem (AGUARDANDO_PETICAO -> AGUARDANDO_CONTESTACAO -> ANALISE_PROVAS)
+    this.events.emitPecaProtocolada({
+      arbitragemId,
+      numero: arbitragem.numero,
+      pecaId: peca.id,
+      tipo: String(dto.tipo),
+      autorId: userId,
+      autorNome: peca.autor?.nome || 'Usuario',
+      requerenteId: arbitragem.requerenteId,
+      requeridoId: arbitragem.requeridoId,
     });
 
     return peca;
