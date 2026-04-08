@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ZapSignService } from './zapsign.service';
@@ -11,11 +12,11 @@ import { StorageService } from '../storage/storage.service';
 import { CertificadoDigitalService } from '../certificado-digital/certificado-digital.service';
 import { PdfSignerService } from '../certificado-digital/pdf-signer.service';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
 
 @Injectable()
 export class CompromissoService {
+  private readonly logger = new Logger(CompromissoService.name);
+
   constructor(
     private prisma: PrismaService,
     private zapSign: ZapSignService,
@@ -26,8 +27,9 @@ export class CompromissoService {
     private pdfSignerService: PdfSignerService,
   ) {}
 
-  /** Gerar compromisso arbitral, PDF e enviar para assinatura */
-  async gerar(arbitragemId: string) {
+  /** Gerar compromisso arbitral, PDF e enviar para assinatura.
+   *  Se allowReplace=true, regenera sobrescrevendo compromisso existente que ainda nao foi assinado. */
+  async gerar(arbitragemId: string, options: { allowReplace?: boolean } = {}) {
     const arb = await this.prisma.arbitragem.findUnique({
       where: { id: arbitragemId },
       include: {
@@ -44,7 +46,18 @@ export class CompromissoService {
     const existing = await this.prisma.compromisso.findUnique({
       where: { arbitragemId },
     });
-    if (existing) throw new BadRequestException('Compromisso ja gerado para este caso');
+    if (existing) {
+      if (!options.allowReplace) {
+        throw new BadRequestException('Compromisso ja gerado para este caso');
+      }
+      // Nao substituir se alguem ja assinou
+      if (existing.assinReqAt || existing.assinReqdoAt) {
+        throw new BadRequestException('Compromisso ja possui assinaturas - nao pode ser substituido');
+      }
+      // Deletar o anterior pra criar um novo
+      await this.prisma.compromisso.delete({ where: { id: existing.id } });
+      this.logger.log(`Compromisso anterior ${existing.id} removido para regeneracao`);
+    }
 
     // Gerar HTML do termo
     const html = this.gerarHtmlCompromisso(arb);
@@ -120,6 +133,32 @@ export class CompromissoService {
         status: s.status,
       })) || [],
     };
+  }
+
+  /** Regerar compromisso com verificacao de autorizacao (admin ou parte do caso) */
+  async regerarComAutorizacao(arbitragemId: string, userId: string, userRole: string) {
+    const arb = await this.prisma.arbitragem.findUnique({
+      where: { id: arbitragemId },
+      select: {
+        requerenteId: true,
+        requeridoId: true,
+        advRequerenteId: true,
+        advRequeridoId: true,
+      },
+    });
+    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
+
+    const isParte =
+      arb.requerenteId === userId ||
+      arb.requeridoId === userId ||
+      arb.advRequerenteId === userId ||
+      arb.advRequeridoId === userId;
+
+    if (userRole !== 'ADMIN' && !isParte) {
+      throw new BadRequestException('Sem autorizacao para regerar compromisso');
+    }
+
+    return this.gerar(arbitragemId, { allowReplace: true });
   }
 
   /** Consultar status do compromisso */
@@ -210,33 +249,15 @@ export class CompromissoService {
     const { pfxBuffer, senha, cn } =
       await this.certificadoService.getCertificadoParaAssinatura(userId);
 
-    // 6. Read current PDF from storage
+    // 6. Read current PDF from storage (funciona com supabase, s3 ou local)
     let currentPdfBuffer: Buffer;
-    const pdfUrl = compromisso.pdfUrl;
-
-    const uploadsRoot = path.resolve(process.cwd(), 'uploads');
-
-    if (pdfUrl.startsWith('/uploads/')) {
-      // Local storage
-      const localFilePath = path.resolve(process.cwd(), pdfUrl.replace(/^\//, ''));
-      if (!localFilePath.startsWith(uploadsRoot)) {
-        throw new BadRequestException('Caminho invalido');
-      }
-      if (!fs.existsSync(localFilePath)) {
-        throw new BadRequestException('Arquivo PDF nao encontrado no storage');
-      }
-      currentPdfBuffer = fs.readFileSync(localFilePath);
-    } else {
-      // S3 or other URL - try local path interpretation
-      const localFilePath = path.resolve(process.cwd(), 'uploads', pdfUrl.replace(/^\/[^/]+\//, ''));
-      if (!localFilePath.startsWith(uploadsRoot)) {
-        throw new BadRequestException('Caminho invalido');
-      }
-      if (fs.existsSync(localFilePath)) {
-        currentPdfBuffer = fs.readFileSync(localFilePath);
-      } else {
-        throw new BadRequestException('Arquivo PDF nao acessivel no storage');
-      }
+    try {
+      currentPdfBuffer = await this.storage.getBuffer(compromisso.pdfUrl);
+    } catch (err: any) {
+      this.logger.error(`Erro ao baixar PDF do compromisso ${compromisso.id}: ${err.message}`);
+      throw new BadRequestException(
+        'Arquivo PDF nao acessivel no storage. O compromisso pode precisar ser regerado.',
+      );
     }
 
     // 7. Sign the PDF with user's certificate

@@ -245,8 +245,8 @@ export default function ArbitragemDetailPage() {
                 </div>
               )}
 
-              {/* Requerido: assinar compromisso */}
-              {isRequerido && status === 'AGUARDANDO_ASSINATURA' && (
+              {/* Requerente ou Requerido: assinar compromisso */}
+              {(isRequerente || isRequerido) && status === 'AGUARDANDO_ASSINATURA' && (
                 <div className={`${actionCardBase} border-yellow-500`}>
                   <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Assinar Compromisso Arbitral</h3>
                   <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">O compromisso arbitral esta pronto para sua assinatura.</p>

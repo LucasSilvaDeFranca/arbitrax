@@ -62,6 +62,8 @@ export default function CompromissoPage() {
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState('');
   const [signSuccess, setSignSuccess] = useState('');
+  const [gerando, setGerando] = useState(false);
+  const [gerarError, setGerarError] = useState('');
 
   const token = getToken();
   const user = getUser();
@@ -103,6 +105,22 @@ export default function CompromissoPage() {
     load();
     loadArbitragem();
   }, [id]);
+
+  const handleGerar = async () => {
+    if (!token) return;
+    setGerando(true);
+    setGerarError('');
+    try {
+      await api(`/api/v1/arbitragens/${id}/compromisso/regerar`, { method: 'POST', token });
+      setNotFound(false);
+      await load();
+      await loadArbitragem();
+    } catch (err: any) {
+      setGerarError(err.message || 'Erro ao gerar compromisso');
+    } finally {
+      setGerando(false);
+    }
+  };
 
   const handleAssinar = async () => {
     if (!token) return;
@@ -158,8 +176,22 @@ export default function CompromissoPage() {
 
           {notFound ? (
             <div className="bg-white rounded-xl shadow p-8 text-center dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
-              <p className="text-gray-500 dark:text-slate-400 mb-4">Compromisso ainda nao gerado para este caso.</p>
-              <p className="text-sm text-gray-400 dark:text-slate-500">O administrador ira gerar o termo quando o caso estiver pronto.</p>
+              <p className="text-gray-500 dark:text-slate-400 mb-2">Compromisso ainda nao gerado para este caso.</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500 mb-6">
+                O documento e criado automaticamente quando o convite e aceito. Se voce esta vendo esta mensagem mas as duas partes ja aceitaram, clique no botao abaixo para gerar manualmente.
+              </p>
+              {gerarError && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                  {gerarError}
+                </div>
+              )}
+              <button
+                onClick={handleGerar}
+                disabled={gerando}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50"
+              >
+                {gerando ? 'Gerando...' : 'Gerar Compromisso Arbitral'}
+              </button>
             </div>
           ) : compromisso && (
             <div className="space-y-6">

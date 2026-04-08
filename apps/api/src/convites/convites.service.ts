@@ -181,7 +181,12 @@ export class ConvitesService {
       await this.compromissoService.gerar(convite.arbitragemId);
       this.logger.log(`Compromisso gerado automaticamente para ${convite.arbitragemId}`);
     } catch (err: any) {
-      this.logger.warn(`Compromisso nao gerado automaticamente: ${err.message}`);
+      // Log DETALHADO pra nao esconder erros que impedem o fluxo de assinatura
+      this.logger.error(
+        `Compromisso NAO foi gerado automaticamente para arbitragem ${convite.arbitragemId}: ${err.message}`,
+        err.stack,
+      );
+      this.logger.error('As partes nao poderao assinar ate que o compromisso seja regerado manualmente.');
     }
 
     // Audit log do aceite das regras

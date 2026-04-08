@@ -27,6 +27,17 @@ export class CompromissoController {
     return this.compromissoService.gerar(arbitragemId);
   }
 
+  @Post('regerar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Regerar compromisso (admin ou partes do caso). Substitui se ninguem assinou.' })
+  regerar(
+    @Param('arbitragemId') arbitragemId: string,
+    @Request() req: any,
+  ) {
+    return this.compromissoService.regerarComAutorizacao(arbitragemId, req.user.sub, req.user.role);
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
