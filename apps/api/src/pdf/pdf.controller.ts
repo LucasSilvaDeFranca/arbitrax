@@ -45,11 +45,30 @@ export class PdfController {
 
     if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
 
+    // Cabecalhos no-cache para evitar que browsers sirvam versoes stale
+    // (importante apos assinatura digital que sobrescreve o PDF)
+    const noCacheHeaders = {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      Pragma: 'no-cache',
+      Expires: '0',
+    };
+
     // If a stored PDF exists, serve it directly (includes signed versions)
     if (arb.compromisso?.pdfUrl) {
+      this.logger.log(
+        `[download compromisso] arb=${arb.numero} status=${arb.compromisso.status} pdfUrl=${arb.compromisso.pdfUrl} dbHash=${arb.compromisso.hashSha256?.slice(0, 16)}...`,
+      );
       try {
         const storedBuffer = await this.storage.getBuffer(arb.compromisso.pdfUrl);
+        // Hash do buffer retornado para comparar com dbHash
+        const crypto = await import('crypto');
+        const actualHash = crypto.createHash('sha256').update(storedBuffer).digest('hex');
+        const hashMatch = actualHash === arb.compromisso.hashSha256;
+        this.logger.log(
+          `[download compromisso] STORED buffer=${storedBuffer.length} bytes, hash=${actualHash.slice(0, 16)}..., hashMatchDb=${hashMatch}`,
+        );
         res.set({
+          ...noCacheHeaders,
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="compromisso-${arb.numero}.pdf"`,
           'Content-Length': storedBuffer.length,
@@ -58,9 +77,11 @@ export class PdfController {
         return;
       } catch (err: any) {
         this.logger.warn(
-          `Falha ao ler PDF armazenado (${arb.compromisso.pdfUrl}): ${err.message}. Gerando on-the-fly.`,
+          `[download compromisso] Falha ao ler PDF armazenado (${arb.compromisso.pdfUrl}): ${err.message}. Gerando on-the-fly.`,
         );
       }
+    } else {
+      this.logger.log(`[download compromisso] arb=${arb.numero} SEM pdfUrl - gerando on-the-fly`);
     }
 
     // Fallback: generate on-the-fly
@@ -76,7 +97,11 @@ export class PdfController {
       arbitroNome: arb.arbitros?.[0]?.arbitro?.nome,
     });
 
+    this.logger.log(
+      `[download compromisso] ON-THE-FLY buffer=${buffer.length} bytes (fallback, sem assinatura)`,
+    );
     res.set({
+      ...noCacheHeaders,
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="compromisso-${arb.numero}.pdf"`,
       'Content-Length': buffer.length,

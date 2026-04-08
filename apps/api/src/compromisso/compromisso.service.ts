@@ -253,6 +253,9 @@ export class CompromissoService {
     let currentPdfBuffer: Buffer;
     try {
       currentPdfBuffer = await this.storage.getBuffer(compromisso.pdfUrl);
+      this.logger.log(
+        `[sign compromisso] arb=${arb.numero} currentPdfBuffer=${currentPdfBuffer.length} bytes (lido de ${compromisso.pdfUrl})`,
+      );
     } catch (err: any) {
       this.logger.error(`Erro ao baixar PDF do compromisso ${compromisso.id}: ${err.message}`);
       throw new BadRequestException(
@@ -277,9 +280,16 @@ export class CompromissoService {
       },
     );
 
+    this.logger.log(
+      `[sign compromisso] arb=${arb.numero} signedPdfBuffer=${signedPdfBuffer.length} bytes, hash=${hash.slice(0, 16)}...`,
+    );
+
     // 8. Re-upload signed PDF (overwrite same key)
     const storageKey = `arbitragens/${arbitragemId}/compromisso/compromisso-${arb.numero}.pdf`;
     const uploaded = await this.storage.upload(signedPdfBuffer, storageKey, 'application/pdf');
+    this.logger.log(
+      `[sign compromisso] arb=${arb.numero} upload OK key=${storageKey} url=${uploaded.url}`,
+    );
 
     // 9. Update compromisso fields
     const updateData: any = {
