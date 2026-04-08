@@ -17,13 +17,22 @@ export class TextExtractorService {
   }
 
   private async extractFromPdf(buffer: Buffer): Promise<string> {
+    let parser: any = null;
     try {
-      const pdfParse = require('pdf-parse');
-      const data = await pdfParse(buffer);
-      return data.text?.trim() || '';
+      // pdf-parse v2.x: exporta classe PDFParse, nao funcao (v1.x era funcao)
+      const { PDFParse } = require('pdf-parse');
+      // Converter Buffer para Uint8Array sem copiar dados
+      const data = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+      parser = new PDFParse({ data });
+      const result = await parser.getText();
+      return result.text?.trim() || '';
     } catch (err: any) {
       this.logger.error(`Erro ao extrair texto de PDF (application/pdf): ${err.message}`);
       throw err;
+    } finally {
+      if (parser) {
+        try { await parser.destroy(); } catch { /* ignore */ }
+      }
     }
   }
 
