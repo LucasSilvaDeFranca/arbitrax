@@ -17,6 +17,16 @@ export class ChatIaService {
     this.openai = new OpenAI({ apiKey: this.config.get('OPENAI_API_KEY', '') });
   }
 
+  /** Extrai nome original do arquivo da arquivoUrl (formato: .../timestamp-nome.ext) */
+  private extractFilename(arquivoUrl: string): string {
+    if (!arquivoUrl) return 'arquivo-desconhecido';
+    const lastSlash = arquivoUrl.lastIndexOf('/');
+    const raw = lastSlash >= 0 ? arquivoUrl.slice(lastSlash + 1) : arquivoUrl;
+    // Remove prefixo timestamp "1707234567890-contrato.pdf" -> "contrato.pdf"
+    const match = raw.match(/^\d+-(.+)$/);
+    return match ? match[1] : raw;
+  }
+
   /** Sanitize user input to prevent prompt injection */
   private sanitizePergunta(input: string): string {
     let sanitized = input.slice(0, 2000);
@@ -63,6 +73,7 @@ export class ChatIaService {
         id: true,
         tipo: true,
         descricao: true,
+        arquivoUrl: true,
         mimeType: true,
         createdAt: true,
         textoExtraido: true,
@@ -137,10 +148,12 @@ export class ChatIaService {
       provasListagem = '\n\nPROVAS/DOCUMENTOS ANEXADOS AO CASO (lista completa):\n' +
         provasList.map((p, i) => {
           const data = new Date(p.createdAt).toLocaleDateString('pt-BR');
+          const nomeArquivo = this.extractFilename(p.arquivoUrl);
           const indexado = p.textoExtraido ? 'sim' : 'nao';
-          const preview = p.textoExtraido ? ` | Resumo: ${p.textoExtraido.slice(0, 200)}...` : '';
-          return `${i + 1}. [${p.tipo}] ${p.descricao || 'sem descricao'} - enviado por ${p.parte?.nome} (${p.parte?.role}) em ${data} | tipo: ${p.mimeType} | indexado p/ busca: ${indexado}${preview}`;
-        }).join('\n');
+          const descricaoLinha = p.descricao ? `\n   Descricao: ${p.descricao}` : '';
+          const previewLinha = p.textoExtraido ? `\n   Resumo do conteudo: ${p.textoExtraido.slice(0, 200).replace(/\s+/g, ' ')}...` : '';
+          return `${i + 1}. Arquivo: ${nomeArquivo}${descricaoLinha}\n   Tipo: ${p.tipo} (${p.mimeType || 'desconhecido'})\n   Enviado por: ${p.parte?.nome} (${p.parte?.role}) em ${data}\n   Indexado para busca semantica: ${indexado}${previewLinha}`;
+        }).join('\n\n');
     } else {
       provasListagem = '\n\nNenhuma prova/documento foi anexado ao caso ainda.';
     }
@@ -162,8 +175,8 @@ Seja detalhado e tecnico. Use linguagem juridica formal.
 IMPORTANTE - ACESSO AOS DOCUMENTOS:
 Voce TEM acesso completo aos documentos e provas deste caso atraves das secoes "PROVAS/DOCUMENTOS ANEXADOS" e "TRECHOS RELEVANTES DOS DOCUMENTOS" abaixo.
 SEMPRE use essas informacoes para responder perguntas sobre o conteudo dos documentos.
-Se o usuario perguntar "quais provas foram anexadas?" ou "o que diz o documento X?", consulte essas secoes.
-Cite de qual documento/parte voce esta extraindo cada informacao.
+Se o arbitro perguntar "quais provas foram anexadas?" ou "o que diz o documento X?", consulte essas secoes.
+Cite de qual documento/parte voce esta extraindo cada informacao, SEMPRE usando o NOME DO ARQUIVO (campo "Arquivo:") como identificador principal. A "Descricao" e um comentario opcional e deve ser tratada como metadado secundario, nunca como nome do documento.
 Se a secao de trechos nao tiver o conteudo especifico pedido mas a lista de provas mostrar que o documento existe, diga que o documento existe mas voce precisa de uma pergunta mais especifica para buscar o trecho.
 
 VOCE ESTA CONVERSANDO COM: ${userNome} (${userRole}) - papel no caso: ${userPapelNoCaso}
@@ -187,7 +200,11 @@ IMPORTANTE - ACESSO AOS DOCUMENTOS:
 Voce TEM acesso aos documentos e provas anexados neste caso atraves das secoes "PROVAS/DOCUMENTOS ANEXADOS" e "TRECHOS RELEVANTES DOS DOCUMENTOS" abaixo.
 SEMPRE use essas informacoes para responder perguntas sobre o que foi anexado ao caso.
 Se o usuario perguntar "quais provas anexei?" ou "o que diz meu contrato?", consulte essas secoes e responda com base nelas.
-Quando listar provas, mostre descricao, tipo e quem enviou.
+Quando listar provas, SEMPRE identifique cada uma pelo NOME DO ARQUIVO (campo "Arquivo:") como titulo principal. A "Descricao" e um comentario opcional do usuario e deve aparecer como detalhe secundario abaixo do nome, nunca como titulo. Exemplo correto:
+  1. **contrato_servicos.pdf**
+     - Descricao: Contrato principal assinado em 2024
+     - Tipo: PDF | Enviado por: Fulano
+Se nao houver descricao, omita a linha de descricao.
 Se a secao de trechos nao tiver o conteudo especifico pedido mas a lista de provas mostrar que o documento existe, diga que o documento existe e peca uma pergunta mais especifica sobre o conteudo.
 NAO diga "nao tenho acesso aos documentos" - voce TEM acesso conforme as secoes abaixo.
 
