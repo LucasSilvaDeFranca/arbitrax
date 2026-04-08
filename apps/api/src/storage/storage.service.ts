@@ -98,11 +98,18 @@ export class StorageService implements OnModuleInit {
     const hash = crypto.createHash('sha256').update(file).digest('hex');
 
     if (this.mode === 'supabase') {
-      // upsert: true permite sobrescrever arquivo existente na mesma key
-      // (usado em fluxos como assinatura digital, que re-upload o PDF modificado)
+      // Remove o objeto existente primeiro para invalidar o cache do CDN do Supabase.
+      // Sem isso, mesmo com upsert:true, o CDN serve a versao antiga por ate 1h (TTL default)
+      // ate expirar - vimos isso acontecer com compromissos assinados (pdf gravado mas CDN
+      // retorna versao stale pre-assinatura). A remocao explicita limpa o cache CDN.
+      // Ignoramos erro se o objeto nao existir (primeira upload).
+      await this.supabase.storage.from(this.bucket).remove([key]).catch(() => {});
+
+      // cacheControl: '0' garante que objetos re-uploadados nao sao cacheados
+      // (documentos legais/assinados devem sempre ser servidos frescos)
       const { error } = await this.supabase.storage
         .from(this.bucket)
-        .upload(key, file, { contentType, upsert: true });
+        .upload(key, file, { contentType, upsert: true, cacheControl: '0' });
       if (error) throw new Error(`Supabase upload falhou: ${error.message}`);
       return { url: `supabase://${key}`, hash };
     }
