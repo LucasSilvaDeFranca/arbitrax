@@ -144,9 +144,25 @@ export class StorageService implements OnModuleInit {
     // Routing baseado no prefixo da URL + mode atual
     if (urlOrKey.startsWith('supabase://') || this.mode === 'supabase') {
       if (!this.supabase) throw new Error('Supabase Storage nao inicializado mas URL indica supabase://');
-      const { data, error } = await this.supabase.storage.from(this.bucket).download(key);
-      if (error) throw new Error(`Supabase download falhou: ${error.message}`);
-      const arrayBuffer = await data.arrayBuffer();
+
+      // Usa signed URL + fetch para bypassar o CDN do Supabase Storage.
+      // O .download() do SDK passa pelo CDN edge que tem eventual consistency
+      // (downloads logo apos upload podem retornar versao stale por alguns segundos).
+      // createSignedUrl gera um token unico a cada call, bypass garantido do cache.
+      // Tambem appendamos um query param _cb para ter certeza absoluta.
+      const { data: signed, error: signError } = await this.supabase.storage
+        .from(this.bucket)
+        .createSignedUrl(key, 60);
+      if (signError) throw new Error(`Supabase signed URL falhou: ${signError.message}`);
+
+      const bustUrl = `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}_cb=${Date.now()}`;
+      const response = await fetch(bustUrl, {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      });
+      if (!response.ok) {
+        throw new Error(`Supabase fetch falhou: HTTP ${response.status}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
       return Buffer.from(arrayBuffer);
     }
 
