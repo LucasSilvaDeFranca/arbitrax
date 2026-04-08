@@ -41,6 +41,7 @@ export default function DocumentosPage() {
   const [provaDesc, setProvaDesc] = useState('');
   const [provaFile, setProvaFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [reprocessando, setReprocessando] = useState(false);
 
   const token = getToken();
 
@@ -116,6 +117,19 @@ export default function DocumentosPage() {
     setDragOver(false);
     if (e.dataTransfer.files.length) {
       setProvaFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleReprocessar = async () => {
+    if (!token) return;
+    setReprocessando(true);
+    try {
+      const res = await provasApi.reprocessarRag(id, token);
+      alert(`Reprocessamento concluido!\n\nTotal: ${res.total}\nProcessadas: ${res.processadas}\nPuladas (sem texto): ${res.puladas}\nErros: ${res.erros}`);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setReprocessando(false);
     }
   };
 
@@ -277,6 +291,23 @@ export default function DocumentosPage() {
                 {submitting ? 'Enviando...' : 'Enviar Prova'}
               </button>
             </div>
+
+            {/* Reprocessar RAG */}
+            {provas.length > 0 && (
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700/50 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Reindexar provas para IA</p>
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400">Se a IA nao esta encontrando suas provas, reprocesse para regenerar os embeddings.</p>
+                </div>
+                <button
+                  onClick={handleReprocessar}
+                  disabled={reprocessando}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium whitespace-nowrap"
+                >
+                  {reprocessando ? 'Reprocessando...' : 'Reprocessar IA'}
+                </button>
+              </div>
+            )}
 
             {/* List */}
             <div className="space-y-3">

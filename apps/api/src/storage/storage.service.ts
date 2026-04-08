@@ -84,6 +84,33 @@ export class StorageService implements OnModuleInit {
     return { url: `/${this.bucket}/${key}`, hash };
   }
 
+  /** Baixa um arquivo (por key ou URL armazenada) e retorna como Buffer */
+  async getBuffer(urlOrKey: string): Promise<Buffer> {
+    // Normalize: aceita tanto "arquivoUrl" (/bucket/key ou /uploads/key) quanto key pura
+    let key = urlOrKey;
+    if (key.startsWith(`/${this.bucket}/`)) key = key.slice(this.bucket.length + 2);
+    else if (key.startsWith('/uploads/')) key = key.slice('/uploads/'.length);
+
+    if (this.useLocal) {
+      const filePath = path.join(this.localPath, key);
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Arquivo nao encontrado: ${filePath}`);
+      }
+      return fs.readFileSync(filePath);
+    }
+
+    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+    const response = await this.s3.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
+    const stream = response.Body;
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream as any) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
   async getSignedDownloadUrl(key: string, expiresIn = 3600): Promise<string> {
     if (this.useLocal) {
       return `/uploads/${key}`;

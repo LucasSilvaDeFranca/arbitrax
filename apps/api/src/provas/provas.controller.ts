@@ -56,4 +56,13 @@ export class ProvasController {
   ) {
     return this.provasService.download(arbitragemId, provaId, req.user.sub, req.user.role);
   }
+
+  @Post('reprocessar-rag')
+  @ApiOperation({ summary: 'Reprocessar todas as provas do caso no RAG (admin/arbitro)' })
+  reprocessarRag(
+    @Param('arbitragemId') arbitragemId: string,
+    @Request() req: any,
+  ) {
+    return this.provasService.reprocessarRag(arbitragemId, req.user.sub, req.user.role);
+  }
 }

@@ -96,6 +96,16 @@ export const provasApi = {
       if (!r.ok) throw new Error('Erro ao baixar prova');
       return r.json() as Promise<{ url: string; hash: string; mimeType: string }>;
     }),
+
+  reprocessarRag: (arbitragemId: string, token: string) =>
+    fetchWithRefresh(`${API_URL}/api/v1/arbitragens/${arbitragemId}/provas/reprocessar-rag`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    }).then((r) => {
+      if (!r.ok) throw new Error('Erro ao reprocessar RAG');
+      return r.json() as Promise<{ total: number; processadas: number; puladas: number; erros: number }>;
+    }),
 };
 
 export function formatFileSize(bytes?: number): string {

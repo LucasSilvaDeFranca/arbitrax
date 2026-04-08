@@ -152,4 +152,28 @@ export class ProvasService {
 
     return { url: signedUrl, hash: prova.hashSha256, mimeType: prova.mimeType };
   }
+
+  async reprocessarRag(arbitragemId: string, userId: string, userRole: string) {
+    const arbitragem = await this.prisma.arbitragem.findUnique({
+      where: { id: arbitragemId },
+      include: { arbitros: true },
+    });
+    if (!arbitragem) throw new NotFoundException('Arbitragem nao encontrada');
+
+    // Apenas ADMIN, arbitros do caso, ou participantes podem reprocessar
+    if (userRole !== 'ADMIN') {
+      const isParticipant =
+        arbitragem.requerenteId === userId ||
+        arbitragem.requeridoId === userId ||
+        arbitragem.advRequerenteId === userId ||
+        arbitragem.advRequeridoId === userId ||
+        arbitragem.arbitros.some((a) => a.arbitroId === userId);
+      if (!isParticipant) throw new ForbiddenException('Sem acesso');
+    }
+
+    return this.ragService.reprocessarProvasDaArbitragem(
+      arbitragemId,
+      (arquivoUrl: string) => this.storage.getBuffer(arquivoUrl),
+    );
+  }
 }

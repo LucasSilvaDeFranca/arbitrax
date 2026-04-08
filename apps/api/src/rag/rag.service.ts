@@ -1,12 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TextExtractorService } from './text-extractor.service';
 import { EmbeddingsService } from './embeddings.service';
 import { ChunkService } from './chunk.service';
 
 @Injectable()
-export class RagService {
+export class RagService implements OnModuleInit {
   private readonly logger = new Logger(RagService.name);
+  private schemaReady = false;
 
   constructor(
     private prisma: PrismaService,
@@ -15,12 +16,57 @@ export class RagService {
     private chunkService: ChunkService,
   ) {}
 
+  async onModuleInit() {
+    await this.ensurePgvectorSchema();
+  }
+
+  /** Idempotent: cria extension pgvector + tabela document_chunks se nao existirem */
+  private async ensurePgvectorSchema(): Promise<void> {
+    try {
+      await this.prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS vector`);
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS document_chunks (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          arbitragem_id uuid NOT NULL,
+          prova_id uuid NOT NULL,
+          parte_id uuid NOT NULL,
+          chunk_index int NOT NULL,
+          content text NOT NULL,
+          metadata jsonb,
+          embedding vector(1536),
+          created_at timestamptz DEFAULT now()
+        )
+      `);
+      await this.prisma.$executeRawUnsafe(
+        `CREATE INDEX IF NOT EXISTS document_chunks_arbitragem_idx ON document_chunks (arbitragem_id)`,
+      );
+      await this.prisma.$executeRawUnsafe(
+        `CREATE INDEX IF NOT EXISTS document_chunks_prova_idx ON document_chunks (prova_id)`,
+      );
+      // HNSW index for fast cosine similarity search (pgvector >= 0.5.0)
+      try {
+        await this.prisma.$executeRawUnsafe(
+          `CREATE INDEX IF NOT EXISTS document_chunks_embedding_idx ON document_chunks USING hnsw (embedding vector_cosine_ops)`,
+        );
+      } catch (err: any) {
+        this.logger.warn(`HNSW index nao criado (pgvector antigo?): ${err.message}`);
+      }
+      this.schemaReady = true;
+      this.logger.log('pgvector schema pronto (document_chunks)');
+    } catch (err: any) {
+      this.logger.error(`Falha ao garantir schema pgvector: ${err.message}`);
+      this.logger.error('Verifique se a extension "vector" esta habilitada no Supabase (Database > Extensions)');
+    }
+  }
+
   async processarProva(
     provaId: string,
     buffer: Buffer,
     mimeType: string,
     metadata: { arbitragemId: string; parteId: string },
   ): Promise<string | null> {
+    if (!this.schemaReady) await this.ensurePgvectorSchema();
+
     // 1. Extract text
     const texto = await this.textExtractor.extractFromFile(buffer, mimeType);
     if (!texto || texto.length < 10) {
@@ -82,6 +128,8 @@ export class RagService {
     query: string,
     topK: number = 10,
   ): Promise<Array<{ content: string; metadata: any; similarity: number }>> {
+    if (!this.schemaReady) await this.ensurePgvectorSchema();
+
     // Generate query embedding
     const queryEmbedding = await this.embeddings.generateEmbedding(query);
     if (queryEmbedding.length === 0) return [];
@@ -122,5 +170,54 @@ export class RagService {
       'DELETE FROM document_chunks WHERE prova_id = $1::uuid',
       provaId,
     );
+  }
+
+  /**
+   * Reprocessa todas as provas de uma arbitragem (baixa arquivo, extrai texto, gera embeddings).
+   * Util quando a tabela document_chunks foi criada depois das provas ja terem sido uploadadas.
+   */
+  async reprocessarProvasDaArbitragem(
+    arbitragemId: string,
+    downloadBuffer: (arquivoUrl: string) => Promise<Buffer>,
+  ): Promise<{ total: number; processadas: number; puladas: number; erros: number }> {
+    if (!this.schemaReady) await this.ensurePgvectorSchema();
+
+    const provas = await this.prisma.prova.findMany({
+      where: { arbitragemId },
+      select: { id: true, arquivoUrl: true, mimeType: true, parteId: true },
+    });
+
+    let processadas = 0;
+    let puladas = 0;
+    let erros = 0;
+
+    for (const prova of provas) {
+      try {
+        // Remove chunks antigos dessa prova (se houver)
+        await this.deletarChunksProva(prova.id);
+
+        // Baixa arquivo e reprocessa
+        const buffer = await downloadBuffer(prova.arquivoUrl);
+        const texto = await this.processarProva(prova.id, buffer, prova.mimeType || '', {
+          arbitragemId,
+          parteId: prova.parteId,
+        });
+
+        if (texto) {
+          await this.prisma.prova.update({
+            where: { id: prova.id },
+            data: { textoExtraido: texto },
+          });
+          processadas++;
+        } else {
+          puladas++;
+        }
+      } catch (err: any) {
+        this.logger.error(`Erro ao reprocessar prova ${prova.id}: ${err.message}`);
+        erros++;
+      }
+    }
+
+    return { total: provas.length, processadas, puladas, erros };
   }
 }
