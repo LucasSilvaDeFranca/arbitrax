@@ -156,8 +156,8 @@ export default function CompromissoPage() {
   };
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-  const isRequerente = user && arbitragem && arbitragem.requerenteId === user.sub;
-  const isRequerido = user && arbitragem && arbitragem.requeridoId === user.sub;
+  const isRequerente = user && arbitragem && arbitragem.requerenteId === user.id;
+  const isRequerido = user && arbitragem && arbitragem.requeridoId === user.id;
   const isParty = isRequerente || isRequerido;
 
   const userAlreadySigned = compromisso && (
