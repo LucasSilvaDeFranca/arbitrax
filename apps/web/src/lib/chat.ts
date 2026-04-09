@@ -9,6 +9,8 @@ export interface ChatMessage {
   lida: boolean;
   createdAt: string;
   user: { id: string; nome: string; role: string } | null;
+  // Client-only: estado de envio otimista (nao vem do backend)
+  _status?: 'sending' | 'sent' | 'error';
 }
 
 export type CanalChat = 'processo' | 'sentenca';

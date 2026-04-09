@@ -5,7 +5,29 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { chatApi, ChatMessage, CanalChat } from '@/lib/chat';
+import { arbitragensApi } from '@/lib/arbitragens';
 import AuthLayout from '@/components/AuthLayout';
+
+/**
+ * Determina o papel processual de um userId DENTRO deste caso especifico.
+ * Prioridade: arbitro > requerente > advRequerente > requerido > advRequerido.
+ * Retorna null se nao for participante.
+ */
+function papelNoCaso(
+  userId: string | undefined,
+  arb: any,
+): 'Requerente' | 'Requerido' | 'Adv. Requerente' | 'Adv. Requerido' | 'Arbitro' | 'Admin' | null {
+  if (!userId || !arb) return null;
+  // Arbitro
+  if (Array.isArray(arb.arbitros) && arb.arbitros.some((a: any) => a.arbitro?.id === userId || a.arbitroId === userId)) {
+    return 'Arbitro';
+  }
+  if (arb.requerente?.id === userId) return 'Requerente';
+  if (arb.requerido?.id === userId) return 'Requerido';
+  if (arb.advRequerente?.id === userId || arb.advRequerenteId === userId) return 'Adv. Requerente';
+  if (arb.advRequerido?.id === userId || arb.advRequeridoId === userId) return 'Adv. Requerido';
+  return null;
+}
 
 /**
  * Dois canais por arbitragem:
@@ -33,10 +55,23 @@ export default function ChatPage() {
   const [forwardingMsgId, setForwardingMsgId] = useState<string | null>(null);
   const [forwardText, setForwardText] = useState('');
   const [forwarding, setForwarding] = useState(false);
+  const [arbitragem, setArbitragem] = useState<any>(null);
 
   const token = getToken();
   const user = getUser();
   const isArbitroOrAdmin = user?.role === 'ARBITRO' || user?.role === 'ADMIN';
+
+  // Helper: dado userId, retorna label do papel processual no caso
+  const labelPapel = (userId?: string) => {
+    const papel = papelNoCaso(userId, arbitragem);
+    if (papel) return papel;
+    // Fallback: se user e ADMIN mas nao e parte do caso
+    if (arbitragem && userId) {
+      // Sem info do caso; mostrar generico
+      return 'Participante';
+    }
+    return '';
+  };
 
   const loadMessages = async (canal: CanalChat = activeCanal) => {
     if (!token) {
@@ -45,9 +80,15 @@ export default function ChatPage() {
     }
     try {
       const msgs = await chatApi.getMessages(id, token, canal);
-      setMessages(msgs);
+      // Preserva mensagens otimistas em 'sending' ou 'error' que ainda nao foram
+      // confirmadas pelo servidor (evita que o polling apague a bolha "enviando")
+      setMessages((prev) => {
+        const pendentes = prev.filter(
+          (m) => m.id.startsWith('temp-') && (m._status === 'sending' || m._status === 'error'),
+        );
+        return [...msgs, ...pendentes];
+      });
     } catch (err: any) {
-      // 403 no canal sentenca e esperado pra nao-arbitros
       if (err.message?.includes('privado') || err.message?.includes('arbitros')) {
         setMessages([]);
       } else {
@@ -61,32 +102,87 @@ export default function ChatPage() {
   useEffect(() => {
     setLoading(true);
     loadMessages(activeCanal);
-    // Polling a cada 20s (antes era 10s). Reduz carga no backend em 50%.
+    // Polling a cada 20s. Reduz carga no backend.
     const interval = setInterval(() => loadMessages(activeCanal), 20000);
     return () => clearInterval(interval);
   }, [id, activeCanal]);
+
+  // Carrega dados da arbitragem UMA vez (pra saber papeis processuais)
+  useEffect(() => {
+    if (!token) return;
+    arbitragensApi.getById(id, token).then(setArbitragem).catch(() => {});
+  }, [id, token]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // No Chat 1 (processo): envia mensagem normal para o grupo
-  // No Chat 2 (sentenca): envia pergunta para IA
+  // No Chat 1 (processo): envia mensagem normal para o grupo (optimistic UI)
+  // No Chat 2 (sentenca): envia pergunta para IA (comportamento antigo - espera resposta)
   const handleSend = async () => {
     if (!token || !newMsg.trim()) return;
-    setSending(true);
-    try {
-      if (activeCanal === 'sentenca') {
-        await chatApi.askIa(id, newMsg.trim(), token);
-      } else {
-        await chatApi.send(id, { conteudo: newMsg.trim(), canal: 'processo' }, token);
+    const conteudo = newMsg.trim();
+
+    if (activeCanal === 'sentenca') {
+      // Chat de sentenca: aguarda IA (demora), mantem input desabilitado durante envio
+      setSending(true);
+      try {
+        await chatApi.askIa(id, conteudo, token);
+        setNewMsg('');
+        await loadMessages('sentenca');
+      } catch (err: any) {
+        alert(err.message);
+      } finally {
+        setSending(false);
       }
-      setNewMsg('');
-      await loadMessages(activeCanal);
+      return;
+    }
+
+    // Chat do processo: optimistic UI tipo WhatsApp
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const optimistic: ChatMessage = {
+      id: tempId,
+      tipo: 'text',
+      canal: 'processo',
+      conteudo,
+      lida: false,
+      createdAt: new Date().toISOString(),
+      user: user
+        ? { id: user.id, nome: user.nome, role: user.role }
+        : null,
+      _status: 'sending',
+    };
+
+    // Adiciona imediatamente + limpa input (sensacao instantanea)
+    setMessages((prev) => [...prev, optimistic]);
+    setNewMsg('');
+
+    try {
+      const saved = await chatApi.send(id, { conteudo, canal: 'processo' }, token);
+      // Substitui a temp pela mensagem real com status 'sent'
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...saved, _status: 'sent' as const } : m)),
+      );
     } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setSending(false);
+      // Marca a temp como erro
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, _status: 'error' as const } : m)),
+      );
+      console.error('Erro ao enviar mensagem:', err);
+    }
+  };
+
+  // Permite reenviar uma mensagem que falhou
+  const retrySend = async (msg: ChatMessage) => {
+    if (!token || !msg.conteudo) return;
+    setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, _status: 'sending' } : m)));
+    try {
+      const saved = await chatApi.send(id, { conteudo: msg.conteudo, canal: 'processo' }, token);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msg.id ? { ...saved, _status: 'sent' as const } : m)),
+      );
+    } catch {
+      setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, _status: 'error' } : m)));
     }
   };
 
@@ -284,12 +380,15 @@ export default function ChatPage() {
               );
             }
 
+            const papelLabel = labelPapel(msg.user?.id || undefined);
+            const status = msg._status;
+
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`max-w-[75%] rounded-xl px-4 py-2 ${
                     isMe
-                      ? 'bg-primary-600 text-white'
+                      ? `bg-primary-600 text-white ${status === 'sending' ? 'opacity-70' : ''} ${status === 'error' ? 'bg-red-600' : ''}`
                       : 'bg-white shadow dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none'
                   }`}
                 >
@@ -299,20 +398,49 @@ export default function ChatPage() {
                         isMe ? 'text-primary-200' : 'text-primary-600 dark:text-primary-400'
                       }`}
                     >
-                      {msg.user?.nome || 'Usuario'} ({msg.user?.role || ''})
+                      {msg.user?.nome || 'Usuario'}
+                      {papelLabel && ` (${papelLabel})`}
                     </p>
                   )}
                   <p className="text-sm whitespace-pre-wrap">{msg.conteudo}</p>
-                  <p
-                    className={`text-xs mt-1 ${
+                  <div
+                    className={`text-xs mt-1 flex items-center justify-end gap-1 ${
                       isMe ? 'text-primary-200' : 'text-gray-400 dark:text-slate-500'
                     }`}
                   >
-                    {new Date(msg.createdAt).toLocaleTimeString('pt-BR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
+                    <span>
+                      {new Date(msg.createdAt).toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    {isMe && status && (
+                      <span className="ml-1 inline-flex items-center">
+                        {status === 'sending' && (
+                          // 1 tick cinza (enviando)
+                          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 8.5l3 3 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                        {status === 'sent' && (
+                          // 2 ticks (entregue)
+                          <svg className="w-4 h-4" viewBox="0 0 18 16" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M2 8.5l3 3 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M7 8.5l3 3 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                        {status === 'error' && (
+                          <button
+                            onClick={() => retrySend(msg)}
+                            className="text-xs underline hover:no-underline"
+                            title="Erro ao enviar - clique para tentar de novo"
+                          >
+                            falhou, tentar de novo
+                          </button>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
