@@ -6,19 +6,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { getUser, getToken, logout } from '@/lib/auth';
 import ThemeToggle from './ThemeToggle';
 
-const ROLE_LABELS: Record<string, string> = {
-  USUARIO: 'Usuario',
-  ADVOGADO: 'Advogado',
-  ARBITRO: 'Arbitro',
-  ADMIN: 'Administrador',
-};
-
-const ROLE_COLORS: Record<string, string> = {
-  USUARIO: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  ADVOGADO: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  ARBITRO: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  ADMIN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-};
+// Labels/cores de role removidos da sidebar - o tipo de conta nao e mais
+// exibido visualmente porque 'USUARIO' pode ser requerente ou requerido
+// dependendo do caso. O papel processual aparece na lista de arbitragens.
 
 interface NavItem {
   href: string;
@@ -154,11 +144,6 @@ export default function Sidebar() {
                 <p className="font-medium text-sm text-gray-800 dark:text-slate-100 truncate">{user.nome}</p>
                 <p className="text-xs text-gray-400 dark:text-slate-500 truncate">{user.email}</p>
               </div>
-            </div>
-            <div className="mt-2">
-              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[user.role] || 'bg-gray-100 dark:bg-slate-700 dark:text-slate-200'}`}>
-                {ROLE_LABELS[user.role] || user.role}
-              </span>
             </div>
           </div>
 
