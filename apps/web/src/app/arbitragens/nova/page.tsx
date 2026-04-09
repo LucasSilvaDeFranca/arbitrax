@@ -346,13 +346,18 @@ export default function NovaArbitragemPage() {
                   Valor da causa (R$) * <span className="text-gray-400 dark:text-slate-500">(min. R$ 1.000)</span>
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   required
-                  min={1000}
-                  value={form.valorCausa || ''}
-                  onChange={(e) => update('valorCausa', Number(e.target.value))}
+                  value={form.valorCausa ? form.valorCausa.toLocaleString('pt-BR') : ''}
+                  onChange={(e) => {
+                    // Aceita formato brasileiro com pontos como separador de milhar.
+                    // Remove tudo que nao for digito e armazena numero puro.
+                    const raw = e.target.value.replace(/\D/g, '');
+                    update('valorCausa', raw ? Number(raw) : 0);
+                  }}
                   className={inputClass}
-                  placeholder="25000"
+                  placeholder="25.000"
                 />
               </div>
 
