@@ -340,7 +340,7 @@ export default function NovaArbitragemPage() {
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{form.objeto.length}/50 caracteres</p>
               </div>
 
-              {/* Valor da Causa */}
+              {/* Valor da Causa - aceita apenas digitos, sem formatacao */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Valor da causa (R$) * <span className="text-gray-400 dark:text-slate-500">(min. R$ 1.000)</span>
@@ -348,17 +348,27 @@ export default function NovaArbitragemPage() {
                 <input
                   type="text"
                   inputMode="numeric"
-                  required
-                  value={form.valorCausa ? form.valorCausa.toLocaleString('pt-BR') : ''}
+                  pattern="[0-9]*"
+                  value={form.valorCausa > 0 ? String(form.valorCausa) : ''}
                   onChange={(e) => {
-                    // Aceita formato brasileiro com pontos como separador de milhar.
-                    // Remove tudo que nao for digito e armazena numero puro.
-                    const raw = e.target.value.replace(/\D/g, '');
-                    update('valorCausa', raw ? Number(raw) : 0);
+                    // Strip tudo que nao e digito. onChange recebe string, armazena int.
+                    const digits = e.target.value.replace(/[^0-9]/g, '');
+                    const n = digits === '' ? 0 : parseInt(digits, 10);
+                    update('valorCausa', Number.isFinite(n) ? n : 0);
                   }}
                   className={inputClass}
-                  placeholder="25.000"
+                  placeholder="5000"
                 />
+                {form.valorCausa > 0 && form.valorCausa < 1000 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    Valor minimo: R$ 1.000 (voce digitou R$ {form.valorCausa})
+                  </p>
+                )}
+                {form.valorCausa >= 1000 && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    R$ {form.valorCausa.toLocaleString('pt-BR')}
+                  </p>
+                )}
               </div>
 
               {/* Categoria */}
