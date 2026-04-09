@@ -38,7 +38,8 @@ export default function NovaArbitragemPage() {
   const [error, setError] = useState('');
   const [tiposDemanda, setTiposDemanda] = useState<TipoDemanda[]>([]);
   const [arbitros, setArbitros] = useState<Arbitro[]>([]);
-  const [podeEscolherArbitro, setPodeEscolherArbitro] = useState(false);
+  // Escolha de arbitro sempre disponivel agora (feature priorizada pelo cliente - Apr/2026)
+  const podeEscolherArbitro = true;
   const [form, setForm] = useState({
     requeridoNome: '',
     requeridoCpfCnpj: '',
@@ -52,7 +53,7 @@ export default function NovaArbitragemPage() {
     regraLeis: true,
     regraEquidade: false,
     regraCostumes: false,
-    modoArbitro: 'sistema',
+    modoArbitro: 'escolha', // default agora: cliente escolhe o arbitro
     arbitroId: '',
   });
 
@@ -70,14 +71,6 @@ export default function NovaArbitragemPage() {
       .then(setArbitros)
       .catch(() => {});
 
-    // Verificar plano do usuario
-    api<any>('/api/v1/planos/minha-assinatura', { token })
-      .then((data) => {
-        if (data?.plano?.escolherArbitro) {
-          setPodeEscolherArbitro(true);
-        }
-      })
-      .catch(() => {});
   }, []);
 
   const update = (field: string, value: any) => setForm({ ...form, [field]: value });
@@ -299,13 +292,8 @@ export default function NovaArbitragemPage() {
                       disabled={!podeEscolherArbitro}
                       className="text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 disabled:opacity-50"
                     />
-                    <label htmlFor="modoEscolha" className={`text-sm ${!podeEscolherArbitro ? 'text-gray-400 dark:text-slate-500' : 'text-gray-700 dark:text-slate-300'}`}>
+                    <label htmlFor="modoEscolha" className="text-sm text-gray-700 dark:text-slate-300">
                       Quero escolher o arbitro
-                      {!podeEscolherArbitro && (
-                        <span className="ml-2 text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full">
-                          Disponivel no plano Plus
-                        </span>
-                      )}
                     </label>
                   </div>
                   {form.modoArbitro === 'escolha' && podeEscolherArbitro && (
