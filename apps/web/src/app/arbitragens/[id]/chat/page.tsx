@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { chatApi, ChatMessage, CanalChat } from '@/lib/chat';
@@ -44,14 +44,20 @@ function papelNoCaso(
 export default function ChatPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Canal inicial: le query param ?canal= (aceita 'processo' ou 'sentenca').
+  // Default = 'processo'. Fallback em valor invalido: 'processo'.
+  const canalParam = searchParams?.get('canal');
+  const canalInicial: CanalChat = canalParam === 'sentenca' ? 'sentenca' : 'processo';
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [activeCanal, setActiveCanal] = useState<CanalChat>('processo');
+  const [activeCanal, setActiveCanal] = useState<CanalChat>(canalInicial);
   const [forwardingMsgId, setForwardingMsgId] = useState<string | null>(null);
   const [forwardText, setForwardText] = useState('');
   const [forwarding, setForwarding] = useState(false);

@@ -422,45 +422,69 @@ export default function ArbitragemDetailPage() {
                 </div>
               )}
 
-              {/* Arbitro: caso em analise - pode conversar com IA e gerar sentenca */}
-              {isArbitro && status === 'ANALISE_PROVAS' && (
-                <div className={`${actionCardBase} border-indigo-500`}>
-                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Caso pronto para analise</h3>
-                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">
-                    A contestacao foi protocolada. Acesse o Chat de Sentenca (privado) para conversar com a IA e construir a minuta. Quando pronto, gere a sentenca.
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
-                    <Link href={`/arbitragens/${id}/chat`} className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
-                      Abrir Chat de Sentenca
-                    </Link>
-                    <Link href={`/arbitragens/${id}/sentenca`} className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm">
-                      Gerar Sentenca com IA
-                    </Link>
+              {/* Arbitro: card unificado com 3 botoes durante a fase ativa de analise/sentenca.
+                  Visivel de ANALISE_PROVAS ate SENTENCA_APROVADA. */}
+              {isArbitro && (
+                status === 'ANALISE_PROVAS' ||
+                status === 'AGUARDANDO_PROVAS_ADICIONAIS' ||
+                status === 'GERANDO_SENTENCA' ||
+                status === 'SENTENCA_EM_REVISAO' ||
+                status === 'SENTENCA_APROVADA'
+              ) && (() => {
+                // Label dinamico do botao de sentenca conforme o status
+                let sentencaLabel = 'Gerar Sentenca com IA';
+                let sentencaColor = 'bg-purple-600 hover:bg-purple-700';
+                if (status === 'SENTENCA_EM_REVISAO' || status === 'GERANDO_SENTENCA') {
+                  sentencaLabel = 'Revisar Sentenca';
+                  sentencaColor = 'bg-yellow-600 hover:bg-yellow-700';
+                } else if (status === 'SENTENCA_APROVADA') {
+                  sentencaLabel = 'Ratificar e Assinar';
+                  sentencaColor = 'bg-green-600 hover:bg-green-700';
+                }
+
+                // Descricao contextual
+                let descricao = 'A contestacao foi protocolada. Use o chat com a IA para construir a minuta e o chat das partes para perguntas oficiais.';
+                if (status === 'AGUARDANDO_PROVAS_ADICIONAIS') {
+                  descricao = 'Aguardando provas adicionais das partes. Quando chegarem, retome a analise.';
+                } else if (status === 'GERANDO_SENTENCA' || status === 'SENTENCA_EM_REVISAO') {
+                  descricao = 'Uma minuta de sentenca existe. Revise o texto, ajuste se necessario, e aprove.';
+                } else if (status === 'SENTENCA_APROVADA') {
+                  descricao = 'A sentenca foi aprovada. Proximo passo: ratificar com assinatura digital A1.';
+                }
+
+                return (
+                  <div className={`${actionCardBase} border-indigo-500`}>
+                    <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Acoes do Arbitro</h3>
+                    <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">{descricao}</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <Link
+                        href={`/arbitragens/${id}/chat?canal=processo`}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium"
+                        title="Chat publico com requerente, requerido e advogados"
+                      >
+                        <span>{'\u{1F4AC}'}</span>
+                        Chat das Partes
+                      </Link>
+                      <Link
+                        href={`/arbitragens/${id}/chat?canal=sentenca`}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium"
+                        title="Chat privado com a IA para construir a sentenca"
+                      >
+                        <span>{'\u{1F916}'}</span>
+                        Chat com IA
+                      </Link>
+                      <Link
+                        href={`/arbitragens/${id}/sentenca`}
+                        className={`inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg transition text-sm font-medium ${sentencaColor}`}
+                        title={sentencaLabel}
+                      >
+                        <span>{'\u{1F4DC}'}</span>
+                        {sentencaLabel}
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Arbitro: sentenca aguardando revisao */}
-              {isArbitro && (status === 'SENTENCA_EM_REVISAO' || status === 'GERANDO_SENTENCA') && (
-                <div className={`${actionCardBase} border-yellow-500`}>
-                  <h3 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Sentenca Aguardando sua Revisao</h3>
-                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">Ha uma sentenca pendente de revisao neste caso.</p>
-                  <Link href={`/arbitragens/${id}/sentenca`} className="inline-block px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm">
-                    Revisar Sentenca
-                  </Link>
-                </div>
-              )}
-
-              {/* Arbitro: ratificar sentenca */}
-              {isArbitro && status === 'SENTENCA_APROVADA' && (
-                <div className={`${actionCardBase} border-green-500`}>
-                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Ratificar Sentenca</h3>
-                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">A sentenca foi aprovada e esta pronta para ratificacao.</p>
-                  <Link href={`/arbitragens/${id}/sentenca`} className="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
-                    Ratificar Sentenca
-                  </Link>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Arbitro: declarar impedimento (always visible) */}
               {isArbitro && (
