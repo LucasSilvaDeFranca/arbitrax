@@ -80,13 +80,19 @@ export default function ChatPage() {
     }
     try {
       const msgs = await chatApi.getMessages(id, token, canal);
-      // Preserva mensagens otimistas em 'sending' ou 'error' que ainda nao foram
-      // confirmadas pelo servidor (evita que o polling apague a bolha "enviando")
+      // Toda mensagem do user logado que ja esta no backend foi entregue -> marca 'sent'
+      // (senao o tick sumiria no proximo polling porque _status e client-only)
+      const msgsComStatus = msgs.map((m) =>
+        m.user?.id === user?.id && m.tipo !== 'system' && m.tipo !== 'ia'
+          ? { ...m, _status: 'sent' as const }
+          : m,
+      );
+      // Preserva mensagens otimistas em 'sending'/'error' que ainda nao foram confirmadas
       setMessages((prev) => {
         const pendentes = prev.filter(
           (m) => m.id.startsWith('temp-') && (m._status === 'sending' || m._status === 'error'),
         );
-        return [...msgs, ...pendentes];
+        return [...msgsComStatus, ...pendentes];
       });
     } catch (err: any) {
       if (err.message?.includes('privado') || err.message?.includes('arbitros')) {
