@@ -316,22 +316,23 @@ export default function ArbitragemDetailPage() {
                 </div>
               )}
 
-              {/* Requerente: aguardando pagamento */}
-              {isRequerente && status === 'AGUARDANDO_PAGAMENTO_REGISTRO' && (
+              {/* Requerente: aguardando aceite do requerido */}
+              {isRequerente && status === 'AGUARDANDO_ACEITE' && (
                 <div className={`${actionCardBase} border-blue-500`}>
-                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Aguardando Pagamento do Registro</h3>
-                  <p className="text-sm text-gray-500 dark:text-slate-400">O pagamento da taxa de registro e necessario para prosseguir com a arbitragem.</p>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Aguardando Aceite do Requerido</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                    Um convite foi enviado para {arb.requerido?.nome}. O requerido tem 5 dias uteis para aceitar ou recusar. Voce sera notificado quando houver resposta.
+                  </p>
                 </div>
               )}
 
-              {/* Requerente: enviar peticao inicial */}
-              {isRequerente && (status === 'EM_INSTRUCAO' || status === 'AGUARDANDO_PETICAO') && (
+              {/* Requerente: aguardando defesa do requerido (fluxo novo) */}
+              {isRequerente && (status === 'AGUARDANDO_CONTESTACAO' || status === 'EM_INSTRUCAO') && (
                 <div className={`${actionCardBase} border-indigo-500`}>
-                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Enviar Peticao Inicial</h3>
-                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">Protocole sua peticao inicial para dar andamento ao caso.</p>
-                  <Link href={`/arbitragens/${id}/documentos`} className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
-                    Ir para Documentos
-                  </Link>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Aguardando Defesa</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                    O requerido tem 15 dias para apresentar a contestacao. Voce sera notificado quando ela for protocolada.
+                  </p>
                 </div>
               )}
 
@@ -416,6 +417,24 @@ export default function ArbitragemDetailPage() {
                   <Link href={`/arbitragens/${id}/documentos`} className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
                     Ir para Documentos
                   </Link>
+                </div>
+              )}
+
+              {/* Arbitro: caso em analise - pode conversar com IA e gerar sentenca */}
+              {isArbitro && status === 'ANALISE_PROVAS' && (
+                <div className={`${actionCardBase} border-indigo-500`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-100 mb-2">Caso pronto para analise</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">
+                    A contestacao foi protocolada. Acesse o Chat de Sentenca (privado) para conversar com a IA e construir a minuta. Quando pronto, gere a sentenca.
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    <Link href={`/arbitragens/${id}/chat`} className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
+                      Abrir Chat de Sentenca
+                    </Link>
+                    <Link href={`/arbitragens/${id}/sentenca`} className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm">
+                      Gerar Sentenca com IA
+                    </Link>
+                  </div>
                 </div>
               )}
 

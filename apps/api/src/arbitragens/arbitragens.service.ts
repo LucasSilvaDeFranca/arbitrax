@@ -115,7 +115,10 @@ export class ArbitragensService {
         regraEquidade: dto.regraEquidade ?? false,
         regraCostumes: dto.regraCostumes ?? false,
         modoArbitro: dto.modoArbitro,
-        status: 'AGUARDANDO_PAGAMENTO_REGISTRO',
+        // Durante fase de testes nao ha pagamento ativo. Pula direto para
+        // AGUARDANDO_ACEITE (requerido precisa responder ao convite).
+        // TODO: reintroduzir AGUARDANDO_PAGAMENTO_REGISTRO quando Asaas for ativado.
+        status: 'AGUARDANDO_ACEITE',
       },
       include: {
         requerente: { select: { id: true, nome: true, email: true } },
