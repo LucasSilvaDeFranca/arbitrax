@@ -22,6 +22,17 @@ export class EmailService {
     });
   }
 
+  /**
+   * APP_URL no .env e uma lista de origins separada por virgula (usado pra CORS).
+   * Para links em emails, usa o PRIMEIRO URL da lista (canonical).
+   * Ex: "https://arbitrax.com.br,https://www.arbitrax.com.br" -> "https://arbitrax.com.br"
+   */
+  private getFrontendUrl(): string {
+    const raw = this.config.get<string>('APP_URL', 'http://localhost:3000');
+    const first = raw.split(',')[0].trim().replace(/\/$/, '');
+    return first || 'http://localhost:3000';
+  }
+
   async send(to: string, subject: string, html: string) {
     if (!this.config.get('SMTP_USER')) {
       this.logger.warn(`Email nao enviado (SMTP nao configurado): ${subject} -> ${to}`);
@@ -44,7 +55,7 @@ export class EmailService {
   // ── Templates de email ──
 
   async enviarConvite(email: string, nome: string, caso: { numero: string; objeto: string; requerenteNome: string; valorCausa: number; conviteToken: string }) {
-    const link = `${this.config.get('APP_URL', 'http://localhost:3000')}/convite/${caso.conviteToken}`;
+    const link = `${this.getFrontendUrl()}/convite/${caso.conviteToken}`;
     await this.send(email, `Convite para Arbitragem - ${caso.numero}`, `
       <h2>Voce foi convidado para uma arbitragem</h2>
       <p>Prezado(a) <strong>${nome}</strong>,</p>
@@ -73,7 +84,7 @@ export class EmailService {
       <p>Prezado(a) <strong>${nome}</strong>,</p>
       <p>Voce tem um prazo ${prazo.diasRestantes === 0 ? '<strong style="color:red;">VENCENDO HOJE</strong>' : `vencendo em <strong>${prazo.diasRestantes} dia(s)</strong>`} no caso <strong>${prazo.casoNumero}</strong>.</p>
       <div style="text-align:center;margin:30px 0;">
-        <a href="${this.config.get('APP_URL')}/dashboard" style="background:#1e40af;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
+        <a href="${this.getFrontendUrl()}/dashboard" style="background:#1e40af;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
           Acessar Plataforma
         </a>
       </div>
@@ -92,7 +103,7 @@ export class EmailService {
         </div>
       ` : ''}
       <div style="text-align:center;margin:30px 0;">
-        <a href="${this.config.get('APP_URL')}/dashboard" style="background:#1e40af;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
+        <a href="${this.getFrontendUrl()}/dashboard" style="background:#1e40af;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
           Ver Sentenca
         </a>
       </div>
@@ -100,7 +111,7 @@ export class EmailService {
   }
 
   async enviarCompromissoPronto(email: string, nome: string, caso: { numero: string; arbitragemId: string }) {
-    const link = `${this.config.get('APP_URL')}/arbitragens/${caso.arbitragemId}/compromisso`;
+    const link = `${this.getFrontendUrl()}/arbitragens/${caso.arbitragemId}/compromisso`;
     await this.send(email, `Compromisso Arbitral pronto - ${caso.numero}`, `
       <h2>Compromisso Arbitral disponivel para assinatura</h2>
       <p>Prezado(a) <strong>${nome}</strong>,</p>
@@ -120,7 +131,7 @@ export class EmailService {
       <p>O requerido <strong>${caso.requeridoNome}</strong> ${caso.aceito ? '<strong style="color:green;">ACEITOU</strong>' : '<strong style="color:red;">RECUSOU</strong>'} participar da arbitragem <strong>${caso.numero}</strong>.</p>
       ${caso.aceito ? '<p>O proximo passo e a assinatura do Compromisso Arbitral.</p>' : '<p>O caso foi encerrado.</p>'}
       <div style="text-align:center;margin:30px 0;">
-        <a href="${this.config.get('APP_URL')}/dashboard" style="background:#1e40af;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
+        <a href="${this.getFrontendUrl()}/dashboard" style="background:#1e40af;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
           Acessar Plataforma
         </a>
       </div>

@@ -445,7 +445,7 @@ export class ArbitragensService {
           <p>Informamos que a parte contraria constituiu advogado no caso <strong>${arbitragem.numero}</strong>.</p>
           <p>Voce tambem pode indicar um advogado para representa-lo, caso deseje.</p>
           <div style="text-align:center;margin:30px 0;">
-            <a href="${process.env.APP_URL || 'http://localhost:3000'}/arbitragens/${arbitragemId}" style="background:#1e40af;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
+            <a href="${((process.env.APP_URL || 'http://localhost:3000').split(',')[0].trim().replace(/\/$/, ''))}/arbitragens/${arbitragemId}" style="background:#1e40af;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
               Ver Caso
             </a>
           </div>
