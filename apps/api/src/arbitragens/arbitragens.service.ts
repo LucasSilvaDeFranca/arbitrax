@@ -235,15 +235,29 @@ export class ArbitragensService {
   }
 
   async findOne(id: string, userId: string, userRole: string) {
+    // Payload otimizado: seleciona apenas os campos usados pelo frontend.
+    // email/telefone foram removidos - se precisar, fetch separado via /users/:id
     const arbitragem = await this.prisma.arbitragem.findUnique({
       where: { id },
-      include: {
-        requerente: { select: { id: true, nome: true, email: true, telefone: true } },
-        requerido: { select: { id: true, nome: true, email: true, telefone: true } },
+      select: {
+        id: true,
+        numero: true,
+        status: true,
+        objeto: true,
+        valorCausa: true,
+        categoria: true,
+        urgencia: true,
+        createdAt: true,
+        requerenteId: true,
+        requeridoId: true,
+        advRequerenteId: true,
+        advRequeridoId: true,
+        requerente: { select: { id: true, nome: true } },
+        requerido: { select: { id: true, nome: true } },
         advRequerente: { select: { id: true, nome: true } },
         advRequerido: { select: { id: true, nome: true } },
         arbitros: {
-          include: { arbitro: { select: { id: true, nome: true } } },
+          select: { arbitroId: true, arbitro: { select: { id: true, nome: true } } },
         },
         pecas: { orderBy: { protocoladaAt: 'desc' }, take: 10, select: { id: true, tipo: true, protocoladaAt: true } },
         provas: { orderBy: { createdAt: 'desc' }, take: 10, select: { id: true, tipo: true, descricao: true, createdAt: true } },

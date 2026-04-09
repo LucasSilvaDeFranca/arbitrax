@@ -356,7 +356,7 @@ model ChatMessage {
   arbitragemId     String   @map("arbitragem_id")
   userId           String?  @map("user_id")
   tipo             String   @default("text") // text | document | image | video | audio | system | ia
-  canal            String   @default("privado")
+  canal            String   @default("processo") // 'processo' (grupo publico) | 'sentenca' (arbitro+IA privado)
   conteudo         String?
   mediaUrl         String?  @map("media_url")
   respondidoParaId String?  @map("respondido_para_id")

@@ -61,7 +61,8 @@ export default function ChatPage() {
   useEffect(() => {
     setLoading(true);
     loadMessages(activeCanal);
-    const interval = setInterval(() => loadMessages(activeCanal), 10000);
+    // Polling a cada 20s (antes era 10s). Reduz carga no backend em 50%.
+    const interval = setInterval(() => loadMessages(activeCanal), 20000);
     return () => clearInterval(interval);
   }, [id, activeCanal]);
 

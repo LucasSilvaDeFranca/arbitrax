@@ -21,6 +21,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     await this.connectWithRetry();
+    // Warmup: query dummy para aquecer o pool e evitar primeira request lenta
+    try {
+      await this.$queryRaw`SELECT 1`;
+      this.logger.log('Warmup query OK');
+    } catch (err: any) {
+      this.logger.warn(`Warmup falhou: ${err.message?.substring(0, 80)}`);
+    }
     this.startKeepAlive();
 
     // Middleware para reconectar automaticamente em caso de perda de conexao

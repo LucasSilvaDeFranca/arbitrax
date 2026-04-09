@@ -45,7 +45,28 @@ export default function ArbitragensListPage() {
   }, [router]);
 
   if (loading) {
-    return <AuthLayout><div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500 dark:text-slate-400">Carregando...</p></div></AuthLayout>;
+    return (
+      <AuthLayout>
+        <div className="p-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex justify-between items-center mb-8">
+              <div className="h-8 w-64 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+              <div className="h-10 w-40 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+            </div>
+            <div className="bg-white rounded-xl shadow overflow-hidden dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="px-6 py-4 border-b dark:border-slate-700 last:border-0 flex gap-4">
+                  <div className="h-4 w-20 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+                  <div className="h-4 flex-1 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+                  <div className="h-4 w-24 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+                  <div className="h-4 w-28 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </AuthLayout>
+    );
   }
 
   return (

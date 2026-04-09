@@ -56,8 +56,30 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <AuthLayout>
-        <div className="flex items-center justify-center h-screen">
-          <p className="text-gray-400 dark:text-slate-500">Carregando...</p>
+        <div className="p-8 max-w-6xl mx-auto">
+          <div className="mb-8">
+            <div className="h-8 w-48 bg-gray-200 dark:bg-slate-700 rounded animate-pulse mb-2" />
+            <div className="h-4 w-32 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none"
+              >
+                <div className="h-4 w-24 bg-gray-200 dark:bg-slate-700 rounded animate-pulse mb-3" />
+                <div className="h-8 w-16 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+          <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
+            <div className="h-5 w-32 bg-gray-200 dark:bg-slate-700 rounded animate-pulse mb-4" />
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="py-3 border-b dark:border-slate-700 last:border-0">
+                <div className="h-4 w-full bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
         </div>
       </AuthLayout>
     );

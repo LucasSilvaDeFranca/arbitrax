@@ -68,21 +68,23 @@ export default function CompromissoPage() {
   const token = getToken();
   const user = getUser();
 
+  // Carrega todos os dados da pagina em paralelo (compromisso + cert + arbitragem)
   const load = async () => {
     if (!token) { router.push('/login'); return; }
     try {
-      const [compData, certData] = await Promise.all([
+      const [compData, certData, arbData] = await Promise.all([
         api<Compromisso>(`/api/v1/arbitragens/${id}/compromisso`, { token }).catch(() => null),
         api<CertStatus>(`/api/v1/certificado-digital/status`, { token }).catch(() => null),
+        api<any>(`/api/v1/arbitragens/${id}`, { token }).catch(() => null),
       ]);
 
       if (!compData) {
         setNotFound(true);
       } else {
         setCompromisso(compData);
-        setArbitragem({ id, requerenteId: '', requeridoId: '' });
       }
       setCertStatus(certData);
+      if (arbData) setArbitragem(arbData);
     } catch {
       setNotFound(true);
     } finally {
@@ -90,21 +92,7 @@ export default function CompromissoPage() {
     }
   };
 
-  // Also fetch arbitragem to know user role
-  const loadArbitragem = async () => {
-    if (!token) return;
-    try {
-      const arb = await api<any>(`/api/v1/arbitragens/${id}`, { token });
-      setArbitragem(arb);
-    } catch {
-      // ignore
-    }
-  };
-
-  useEffect(() => {
-    load();
-    loadArbitragem();
-  }, [id]);
+  useEffect(() => { load(); }, [id]);
 
   const handleDownloadPdf = async () => {
     if (!token) return;
@@ -127,7 +115,6 @@ export default function CompromissoPage() {
       await api(`/api/v1/arbitragens/${id}/compromisso/regerar`, { method: 'POST', token });
       setNotFound(false);
       await load();
-      await loadArbitragem();
     } catch (err: any) {
       setGerarError(err.message || 'Erro ao gerar compromisso');
     } finally {
@@ -147,7 +134,6 @@ export default function CompromissoPage() {
       );
       setSignSuccess(`Assinado com sucesso por ${result.cn} em ${formatDate(result.assinadoEm)}`);
       await load();
-      await loadArbitragem();
     } catch (err: any) {
       setSignError(err.message || 'Erro ao assinar');
     } finally {
