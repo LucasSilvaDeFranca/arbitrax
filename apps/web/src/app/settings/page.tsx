@@ -9,8 +9,7 @@ import { certificadoApi, CertificadoStatus } from '@/lib/certificado-digital';
 import AuthLayout from '@/components/AuthLayout';
 
 const ROLE_LABELS: Record<string, string> = {
-  REQUERENTE: 'Requerente (Parte)',
-  REQUERIDO: 'Requerido (Parte)',
+  USUARIO: 'Usuario (Pessoa/Empresa)',
   ADVOGADO: 'Advogado',
   ARBITRO: 'Arbitro',
   ADMIN: 'Administrador',

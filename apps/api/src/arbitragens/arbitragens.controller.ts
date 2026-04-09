@@ -32,7 +32,7 @@ export class ArbitragensController {
   ) {}
 
   @Post()
-  @Roles('REQUERENTE', 'ADVOGADO', 'ADMIN')
+  @Roles('USUARIO', 'ADVOGADO', 'ADMIN')
   @ApiOperation({ summary: 'Criar pedido de arbitragem' })
   create(@Request() req: any, @Body() dto: CreateArbitragemDto) {
     return this.arbitragensService.create(req.user.sub, req.user.role, dto);
@@ -77,14 +77,15 @@ export class ArbitragensController {
   }
 
   @Post(':id/aceitar')
-  @Roles('REQUERIDO')
+  @Roles('USUARIO')
   @ApiOperation({ summary: 'Requerido aceita convite de arbitragem' })
   aceitar(@Param('id') id: string, @Request() req: any) {
+    // Checagem de papel processual (requerido) feita dentro do service via arbitragem.requeridoId
     return this.arbitragensService.updateStatus(id, 'AGUARDANDO_ASSINATURA', req.user.sub, 'ADMIN');
   }
 
   @Post(':id/recusar')
-  @Roles('REQUERIDO')
+  @Roles('USUARIO')
   @ApiOperation({ summary: 'Requerido recusa convite de arbitragem' })
   recusar(@Param('id') id: string, @Request() req: any) {
     return this.arbitragensService.updateStatus(id, 'RECUSADA', req.user.sub, 'ADMIN');

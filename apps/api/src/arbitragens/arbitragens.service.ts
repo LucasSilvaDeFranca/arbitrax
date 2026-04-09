@@ -56,7 +56,7 @@ export class ArbitragensService {
           telefone: dto.requeridoTelefone,
           email: dto.requeridoEmail || `${dto.requeridoCpfCnpj.replace(/\D/g, '')}@pendente.arbitrax`,
           senhaHash: '', // sera definida quando o requerido aceitar
-          role: 'REQUERIDO',
+          role: 'USUARIO', // role e neutro; o papel processual (requerido) e por caso
         },
       });
     }
@@ -86,7 +86,7 @@ export class ArbitragensService {
               telefone: dto.requerenteTelefone,
               email: dto.requerenteEmail || `${dto.requerenteCpfCnpj.replace(/\D/g, '')}@pendente.arbitrax`,
               senhaHash: '',
-              role: 'REQUERENTE',
+              role: 'USUARIO', // role neutro; papel processual (requerente) e por caso
             },
           });
         }

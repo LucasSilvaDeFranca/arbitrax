@@ -11,11 +11,13 @@ datasource db {
 // ─── Enums ──────────────────────────────────────────
 
 enum UserRole {
+  USUARIO     // Pessoa fisica ou juridica que pode ser requerente ou requerido em arbitragens
+  ADVOGADO    // Representa partes (requerente ou requerido) em casos
+  ARBITRO     // Julga casos
+  ADMIN       // Administra a plataforma
+  // Legados (mantidos temporariamente para compat com dados antigos - migrar para USUARIO)
   REQUERENTE
   REQUERIDO
-  ADVOGADO
-  ARBITRO
-  ADMIN
 }
 
 enum ArbitragemStatus {

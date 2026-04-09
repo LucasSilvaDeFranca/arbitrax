@@ -25,7 +25,7 @@ describe('RolesGuard', () => {
   };
 
   it('deve permitir quando nao ha roles definidas', () => {
-    const ctx = mockContext('REQUERENTE', undefined);
+    const ctx = mockContext('USUARIO', undefined);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
@@ -39,18 +39,18 @@ describe('RolesGuard', () => {
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
-  it('deve bloquear REQUERENTE em rota de ADMIN', () => {
-    const ctx = mockContext('REQUERENTE', ['ADMIN']);
+  it('deve bloquear USUARIO em rota de ADMIN', () => {
+    const ctx = mockContext('USUARIO', ['ADMIN']);
     expect(guard.canActivate(ctx)).toBe(false);
   });
 
-  it('deve bloquear REQUERIDO em rota de ARBITRO', () => {
-    const ctx = mockContext('REQUERIDO', ['ARBITRO']);
+  it('deve bloquear USUARIO em rota de ARBITRO', () => {
+    const ctx = mockContext('USUARIO', ['ARBITRO']);
     expect(guard.canActivate(ctx)).toBe(false);
   });
 
   it('deve permitir ADVOGADO em rota que aceita ADVOGADO', () => {
-    const ctx = mockContext('ADVOGADO', ['REQUERENTE', 'ADVOGADO', 'ADMIN']);
+    const ctx = mockContext('ADVOGADO', ['USUARIO', 'ADVOGADO', 'ADMIN']);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 });

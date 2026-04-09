@@ -159,7 +159,7 @@ export default function DashboardPage() {
             );
           }
 
-          // REQUERENTE / REQUERIDO (default)
+          // USUARIO (pessoa fisica/empresa que pode ser requerente ou requerido)
           return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className={cardClass}>
@@ -178,8 +178,8 @@ export default function DashboardPage() {
           );
         })()}
 
-        {/* Role-based alert banners */}
-        {user?.role === 'REQUERIDO' && arbitragens.some((a) => a.status === 'AGUARDANDO_ACEITE') && (
+        {/* Alerta: convites pendentes (user e requerido em algum caso) */}
+        {user?.role === 'USUARIO' && arbitragens.some((a) => a.status === 'AGUARDANDO_ACEITE' && a.requerido?.id === user?.id) && (
           <div className="mb-6 p-4 rounded-lg bg-yellow-50 border border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700/50">
             <p className="text-yellow-800 dark:text-yellow-300 font-medium">
               Voce tem convites pendentes!
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                   Painel Admin
                 </Link>
               )}
-              {user?.role === 'REQUERENTE' && (
+              {user?.role === 'USUARIO' && (
                 <Link
                   href="/arbitragens/nova"
                   className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm"
@@ -237,7 +237,7 @@ export default function DashboardPage() {
           {arbitragens.length === 0 ? (
             <p className="text-gray-500 dark:text-slate-400 text-center py-8">
               Nenhum caso encontrado.
-              {user?.role === 'REQUERENTE' && (
+              {user?.role === 'USUARIO' && (
                 <>
                   {' '}
                   <Link href="/arbitragens/nova" className="text-primary-600 dark:text-primary-400 hover:underline">

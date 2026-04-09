@@ -7,16 +7,14 @@ import { getUser, getToken, logout } from '@/lib/auth';
 import ThemeToggle from './ThemeToggle';
 
 const ROLE_LABELS: Record<string, string> = {
-  REQUERENTE: 'Requerente',
-  REQUERIDO: 'Requerido',
+  USUARIO: 'Usuario',
   ADVOGADO: 'Advogado',
   ARBITRO: 'Arbitro',
   ADMIN: 'Administrador',
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  REQUERENTE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  REQUERIDO: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  USUARIO: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   ADVOGADO: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
   ARBITRO: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
   ADMIN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -36,15 +34,10 @@ function getNavItems(role: string): NavItem[] {
   ];
 
   switch (role) {
-    case 'REQUERENTE':
+    case 'USUARIO':
       items.push(
         { href: '/arbitragens', label: 'Meus Casos', icon: '⚖' },
         { href: '/arbitragens/nova', label: 'Nova Arbitragem', icon: '➕' },
-      );
-      break;
-    case 'REQUERIDO':
-      items.push(
-        { href: '/arbitragens', label: 'Meus Casos', icon: '⚖' },
       );
       break;
     case 'ADVOGADO':

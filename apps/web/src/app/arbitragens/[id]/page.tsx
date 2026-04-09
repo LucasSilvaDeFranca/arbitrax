@@ -183,13 +183,14 @@ export default function ArbitragemDetailPage() {
           </Link>
         </div>
 
-        {/* Acoes contextuais por role e status */}
+        {/* Acoes contextuais por papel processual e status */}
         {(() => {
           const user = getUser();
           const role = user?.role;
           const isAdmin = role === 'ADMIN';
-          const isRequerido = role === 'REQUERIDO' && arb.requerido?.id === user?.id;
-          const isRequerente = role === 'REQUERENTE' && arb.requerente?.id === user?.id;
+          // Papel processual e por CASO (nao pelo role do user)
+          const isRequerente = arb.requerente?.id === user?.id;
+          const isRequerido = arb.requerido?.id === user?.id;
           const isAdvogado = role === 'ADVOGADO';
           const isArbitro = role === 'ARBITRO';
           const status = arb.status as string;

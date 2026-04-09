@@ -49,7 +49,7 @@ describe('AuthService', () => {
       email: 'carlos@test.com',
       telefone: '+5511999999999',
       senha: 'senha123',
-      role: 'REQUERENTE' as any,
+      role: 'USUARIO' as any,
     };
 
     it('deve criar usuario com sucesso', async () => {
@@ -83,7 +83,7 @@ describe('AuthService', () => {
         id: 'uuid-1',
         nome: 'Carlos',
         email: 'carlos@test.com',
-        role: 'REQUERENTE',
+        role: 'USUARIO',
         senhaHash,
         ativo: true,
       });

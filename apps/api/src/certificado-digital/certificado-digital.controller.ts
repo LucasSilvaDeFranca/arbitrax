@@ -21,7 +21,7 @@ import { UploadCertificadoDto } from './dto/upload-certificado.dto';
 @ApiTags('Certificado Digital')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('REQUERENTE', 'REQUERIDO', 'ADVOGADO', 'ARBITRO', 'ADMIN')
+@Roles('USUARIO', 'ADVOGADO', 'ARBITRO', 'ADMIN')
 @Controller('api/v1/certificado-digital')
 export class CertificadoDigitalController {
   constructor(private certificadoService: CertificadoDigitalService) {}
