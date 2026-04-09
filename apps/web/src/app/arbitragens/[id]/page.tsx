@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { arbitragensApi } from '@/lib/arbitragens';
+import { downloadAuthenticatedFile } from '@/lib/api';
 import AuthLayout from '@/components/AuthLayout';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -495,7 +496,33 @@ export default function ArbitragemDetailPage() {
         {/* Prazos */}
         {arb.prazos?.length > 0 && (
           <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none mb-6">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-3">Prazos</h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Prazos</h3>
+              {arb.compromisso?.id && (
+                <button
+                  onClick={async () => {
+                    const tok = getToken();
+                    if (!tok) return;
+                    try {
+                      await downloadAuthenticatedFile(
+                        `/api/v1/arbitragens/${id}/compromisso/pdf`,
+                        tok,
+                        `compromisso-${arb.numero}.pdf`,
+                      );
+                    } catch (err: any) {
+                      alert(err.message || 'Erro ao baixar termo');
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-xs font-medium"
+                  title="Baixar Termo de Compromisso Arbitral"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Baixar Termo de Compromisso
+                </button>
+              )}
+            </div>
             <div className="space-y-2">
               {arb.prazos.map((p: any) => (
                 <div key={p.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-800/30 rounded-lg">
