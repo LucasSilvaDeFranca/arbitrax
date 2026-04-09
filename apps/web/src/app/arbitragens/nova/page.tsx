@@ -43,7 +43,7 @@ export default function NovaArbitragemPage() {
   const [form, setForm] = useState({
     requeridoNome: '',
     requeridoCpfCnpj: '',
-    requeridoTelefone: '',
+    requeridoTelefone: '+55',
     requeridoEmail: '',
     objeto: '',
     valorCausa: 0,
@@ -176,7 +176,16 @@ export default function NovaArbitragemPage() {
                   type="tel"
                   required
                   value={form.requeridoTelefone}
-                  onChange={(e) => update('requeridoTelefone', e.target.value)}
+                  onChange={(e) => {
+                    // Garantir que o numero sempre comece com +55
+                    let v = e.target.value;
+                    if (!v.startsWith('+55')) {
+                      // Se usuario apagou o prefixo, recupera
+                      const digits = v.replace(/\D/g, '');
+                      v = '+55' + digits;
+                    }
+                    update('requeridoTelefone', v);
+                  }}
                   className={inputClass}
                   placeholder="+5511988888888"
                 />
