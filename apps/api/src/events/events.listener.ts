@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
+import { ChatService } from '../chat/chat.service';
+import { ChatIaService } from '../chat/chat-ia.service';
 import {
   EVENTS,
   ArbitragemCriadaEvent,
@@ -19,6 +21,8 @@ export class EventsListener {
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
+    private chatService: ChatService,
+    private chatIaService: ChatIaService,
   ) {}
 
   /**
@@ -105,7 +109,20 @@ export class EventsListener {
         },
       });
 
-      this.logger.log(`Requerente notified for ${event.numero}`);
+      // Abre o Chat 1 (processo) com uma mensagem de boas-vindas.
+      // Essa e a primeira mensagem do canal 'processo' - a partir daqui as partes,
+      // advogados e arbitros podem se comunicar no grupo publico do caso.
+      await this.chatService
+        .sendSystemMessage(
+          event.arbitragemId,
+          `👋 Bem-vindos ao chat do processo ${event.numero}. Este e o canal publico onde todas as partes (requerente, requerido, advogados e arbitros) podem se comunicar. Aguardando assinatura do compromisso arbitral pelas duas partes para dar inicio ao procedimento.`,
+          'processo',
+        )
+        .catch((err) =>
+          this.logger.warn(`Chat 1 welcome message falhou: ${err.message}`),
+        );
+
+      this.logger.log(`Requerente notified for ${event.numero} and Chat 1 opened`);
     } catch (err: any) {
       this.logger.error(
         `Error handling convite.aceito: ${err.message}`,
@@ -185,6 +202,15 @@ export class EventsListener {
         },
       });
 
+      // 6. Mensagem de sistema no Chat 1 (processo)
+      await this.chatService
+        .sendSystemMessage(
+          event.arbitragemId,
+          `✅ Compromisso arbitral assinado por ambas as partes. O procedimento esta oficialmente iniciado. O requerido tem 15 dias para apresentar a defesa/contestacao.`,
+          'processo',
+        )
+        .catch((err) => this.logger.warn(`Chat 1 system msg falhou: ${err.message}`));
+
       this.logger.log(
         `[compromisso.assinado] ${event.numero}: EM_INSTRUCAO -> AGUARDANDO_CONTESTACAO, prazo 15d requerido criado`,
       );
@@ -214,9 +240,9 @@ export class EventsListener {
       });
       if (!arb) return;
 
-      // CONTESTACAO em AGUARDANDO_CONTESTACAO -> ANALISE_PROVAS
+      // CONTESTACAO em AGUARDANDO_CONTESTACAO -> ANALISE_PROVAS + cria Chat 2
       if (event.tipo === 'CONTESTACAO' && arb.status === 'AGUARDANDO_CONTESTACAO') {
-        // Marca prazo CONTESTACAO como cumprido
+        // 1. Marca prazo CONTESTACAO como cumprido
         await this.prisma.prazo.updateMany({
           where: {
             arbitragemId: event.arbitragemId,
@@ -226,31 +252,77 @@ export class EventsListener {
           data: { status: 'CUMPRIDO' },
         });
 
-        // Transiciona status
+        // 2. Transiciona status
         await this.prisma.arbitragem.update({
           where: { id: event.arbitragemId },
           data: { status: 'ANALISE_PROVAS' },
         });
 
-        // Notifica arbitros designados
+        // 3. Busca arbitros designados
         const arbitros = await this.prisma.arbitragemArbitro.findMany({
           where: { arbitragemId: event.arbitragemId },
           select: { arbitroId: true },
         });
 
+        // 4. Publica no Chat 1 (processo) que a contestacao foi protocolada e o caso foi enviado pra analise
+        await this.chatService
+          .sendSystemMessage(
+            event.arbitragemId,
+            `📋 Contestacao protocolada por ${event.autorNome}. O caso foi encaminhado para analise do arbitro. Voces serao notificados quando a sentenca for publicada ou se houver perguntas oficiais.`,
+            'processo',
+          )
+          .catch((err) => this.logger.warn(`Chat 1 system msg falhou: ${err.message}`));
+
+        // 5. Cria o Chat 2 (sentenca) postando o resumo inicial da IA e uma mensagem de sistema
+        // Isto e feito em background - se falhar, o handler nao quebra, o arbitro pode pedir resumo depois
+        try {
+          await this.chatService.sendSystemMessage(
+            event.arbitragemId,
+            `🚪 Chat de sentenca aberto. Este e um canal privado visivel apenas aos arbitros designados e a IA. Aqui voces vao construir a minuta de sentenca. As partes nao tem acesso a este chat. Aguardando analise inicial da IA...`,
+            'sentenca',
+          );
+
+          const resumoIa = await this.chatIaService.gerarResumoInicialParaSentenca(
+            event.arbitragemId,
+          );
+
+          await this.chatService.sendIaMessage(
+            event.arbitragemId,
+            resumoIa,
+            'sentenca',
+          );
+
+          this.logger.log(
+            `[peca.protocolada] ${event.numero}: Chat 2 criado com resumo inicial (${resumoIa.length} chars)`,
+          );
+        } catch (err: any) {
+          this.logger.error(
+            `[peca.protocolada] Falha ao criar Chat 2 ou gerar resumo inicial para ${event.numero}: ${err.message}`,
+          );
+          // Posta mensagem de fallback no Chat 2 pra nao deixar vazio
+          await this.chatService
+            .sendSystemMessage(
+              event.arbitragemId,
+              `Chat de sentenca aberto. A geracao automatica do resumo inicial falhou (${err.message}). Arbitro: por favor, analise o caso e envie sua primeira mensagem para a IA.`,
+              'sentenca',
+            )
+            .catch(() => {});
+        }
+
+        // 6. Notifica arbitros designados
         for (const a of arbitros) {
           await this.prisma.notificacao.create({
             data: {
               userId: a.arbitroId,
               titulo: 'Caso pronto para analise',
-              mensagem: `O caso ${event.numero} recebeu a contestacao. Voce pode iniciar a analise e a construcao da sentenca no chat de sentenca.`,
+              mensagem: `O caso ${event.numero} recebeu a contestacao. O chat de sentenca foi aberto com um resumo inicial da IA.`,
               tipo: 'sistema',
               link: `/arbitragens/${event.arbitragemId}`,
             },
           });
         }
 
-        // Notifica as partes que o caso esta em analise
+        // 7. Notifica as partes que o caso esta em analise
         const partesIds = [event.requerenteId, event.requeridoId].filter(Boolean) as string[];
         for (const parteId of partesIds) {
           await this.prisma.notificacao.create({
@@ -265,7 +337,7 @@ export class EventsListener {
         }
 
         this.logger.log(
-          `[peca.protocolada] ${event.numero}: CONTESTACAO -> ANALISE_PROVAS (${arbitros.length} arbitros notificados)`,
+          `[peca.protocolada] ${event.numero}: CONTESTACAO -> ANALISE_PROVAS (${arbitros.length} arbitros notificados, Chat 2 criado)`,
         );
         return;
       }
