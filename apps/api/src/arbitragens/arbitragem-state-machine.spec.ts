@@ -3,15 +3,13 @@ import { BadRequestException } from '@nestjs/common';
 
 describe('ArbitragemStateMachine', () => {
   describe('validateTransition', () => {
-    // ── Transicoes validas ──
+    // ── Transicoes validas (fluxo novo: sem AGUARDANDO_PETICAO) ──
     const validTransitions: [string, string][] = [
       ['AGUARDANDO_PAGAMENTO_REGISTRO', 'AGUARDANDO_ACEITE'],
       ['AGUARDANDO_ACEITE', 'AGUARDANDO_ASSINATURA'],
       ['AGUARDANDO_ACEITE', 'RECUSADA'],
-      ['AGUARDANDO_ASSINATURA', 'AGUARDANDO_PAGAMENTO_TAXA'],
-      ['AGUARDANDO_PAGAMENTO_TAXA', 'EM_INSTRUCAO'],
-      ['EM_INSTRUCAO', 'AGUARDANDO_PETICAO'],
-      ['AGUARDANDO_PETICAO', 'AGUARDANDO_CONTESTACAO'],
+      ['AGUARDANDO_ASSINATURA', 'EM_INSTRUCAO'],
+      ['EM_INSTRUCAO', 'AGUARDANDO_CONTESTACAO'],
       ['AGUARDANDO_CONTESTACAO', 'ANALISE_PROVAS'],
       ['ANALISE_PROVAS', 'AGUARDANDO_PROVAS_ADICIONAIS'],
       ['ANALISE_PROVAS', 'GERANDO_SENTENCA'],
@@ -21,6 +19,9 @@ describe('ArbitragemStateMachine', () => {
       ['SENTENCA_EM_REVISAO', 'SENTENCA_APROVADA'],
       ['SENTENCA_APROVADA', 'SENTENCA_RATIFICADA'],
       ['SENTENCA_RATIFICADA', 'ENCERRADA'],
+      // Legado aceito (casos antigos no DB)
+      ['AGUARDANDO_PETICAO', 'AGUARDANDO_CONTESTACAO'],
+      ['AGUARDANDO_PAGAMENTO_TAXA', 'EM_INSTRUCAO'],
     ];
 
     test.each(validTransitions)(

@@ -115,63 +115,78 @@ export class EventsListener {
   }
 
   /**
-   * compromisso.assinado -> EM_INSTRUCAO -> AGUARDANDO_PETICAO
-   * Cria prazo de 15 dias para requerente protocolar peticao inicial + notifica.
+   * compromisso.assinado -> EM_INSTRUCAO -> AGUARDANDO_CONTESTACAO
+   * Abre prazo de 15 dias para o REQUERIDO apresentar defesa/contestacao.
+   * A tese do requerente e o proprio objeto do caso (registrado na criacao),
+   * nao existe mais peticao inicial separada.
    */
   @OnEvent(EVENTS.COMPROMISSO_ASSINADO)
   async handleCompromissoAssinado(event: CompromissoAssinadoEvent) {
     this.logger.log(`Handling ${EVENTS.COMPROMISSO_ASSINADO}: ${event.numero}`);
 
     try {
-      // 1. Transicionar arbitragem para AGUARDANDO_PETICAO
+      // 1. Transicionar arbitragem para AGUARDANDO_CONTESTACAO (pula peticao)
       await this.prisma.arbitragem.update({
         where: { id: event.arbitragemId },
-        data: { status: 'AGUARDANDO_PETICAO' },
+        data: { status: 'AGUARDANDO_CONTESTACAO' },
       });
 
-      // 2. Criar prazo de 15 dias para o requerente protocolar peticao inicial
-      const fim = new Date();
-      fim.setDate(fim.getDate() + 15);
-      await this.prisma.prazo.create({
-        data: {
-          arbitragemId: event.arbitragemId,
-          tipo: 'PETICAO',
-          parteId: event.requerenteId,
-          fim,
-          status: 'ATIVO',
-        },
-      });
+      // 2. Criar prazo de 15 dias para o REQUERIDO apresentar defesa
+      if (event.requeridoId) {
+        const fim = new Date();
+        fim.setDate(fim.getDate() + 15);
+        await this.prisma.prazo.create({
+          data: {
+            arbitragemId: event.arbitragemId,
+            tipo: 'CONTESTACAO',
+            parteId: event.requeridoId,
+            fim,
+            status: 'ATIVO',
+          },
+        });
 
-      // 3. Notificacao in-app para o requerente
+        // 3. Notificacao in-app para o requerido
+        await this.prisma.notificacao.create({
+          data: {
+            userId: event.requeridoId,
+            titulo: 'Compromisso assinado - apresentar defesa',
+            mensagem: `O compromisso do caso ${event.numero} foi assinado por ambas as partes. Voce tem 15 dias para apresentar a contestacao.`,
+            tipo: 'sistema',
+            link: `/arbitragens/${event.arbitragemId}/documentos`,
+          },
+        });
+
+        // 4. Email para o requerido
+        const requerido = await this.prisma.user.findUnique({
+          where: { id: event.requeridoId },
+          select: { email: true, nome: true },
+        });
+        if (requerido) {
+          await this.emailService.enviarNotificacaoPrazo(
+            requerido.email,
+            requerido.nome,
+            {
+              tipo: 'CONTESTACAO',
+              diasRestantes: 15,
+              casoNumero: event.numero,
+            },
+          ).catch((err) => this.logger.warn(`Email contestacao falhou: ${err.message}`));
+        }
+      }
+
+      // 5. Notificacao de status mudou pro requerente (informativa)
       await this.prisma.notificacao.create({
         data: {
           userId: event.requerenteId,
-          titulo: 'Compromisso assinado - protocolar peticao inicial',
-          mensagem: `O compromisso do caso ${event.numero} foi assinado por ambas as partes. Voce tem 15 dias para protocolar a peticao inicial.`,
+          titulo: 'Compromisso assinado - aguardando defesa',
+          mensagem: `O compromisso do caso ${event.numero} foi assinado. Aguardando o requerido apresentar defesa (15 dias).`,
           tipo: 'sistema',
-          link: `/arbitragens/${event.arbitragemId}/documentos`,
+          link: `/arbitragens/${event.arbitragemId}`,
         },
       });
 
-      // 4. Email para o requerente
-      const requerente = await this.prisma.user.findUnique({
-        where: { id: event.requerenteId },
-        select: { email: true, nome: true },
-      });
-      if (requerente) {
-        await this.emailService.enviarNotificacaoPrazo(
-          requerente.email,
-          requerente.nome,
-          {
-            tipo: 'PETICAO_INICIAL',
-            diasRestantes: 15,
-            casoNumero: event.numero,
-          },
-        ).catch((err) => this.logger.warn(`Email peticao falhou: ${err.message}`));
-      }
-
       this.logger.log(
-        `[compromisso.assinado] ${event.numero}: status -> AGUARDANDO_PETICAO, prazo 15d criado`,
+        `[compromisso.assinado] ${event.numero}: EM_INSTRUCAO -> AGUARDANDO_CONTESTACAO, prazo 15d requerido criado`,
       );
     } catch (err: any) {
       this.logger.error(
@@ -182,9 +197,9 @@ export class EventsListener {
   }
 
   /**
-   * peca.protocolada -> avanca status conforme tipo da peca
-   * PETICAO_INICIAL  -> AGUARDANDO_PETICAO    -> AGUARDANDO_CONTESTACAO (+ prazo 15d requerido)
-   * CONTESTACAO      -> AGUARDANDO_CONTESTACAO -> ANALISE_PROVAS (+ notifica arbitros)
+   * peca.protocolada -> CONTESTACAO em AGUARDANDO_CONTESTACAO -> ANALISE_PROVAS
+   * Marca prazo como cumprido, transiciona, notifica arbitros e partes.
+   * O Chat 2 (sentenca) sera criado aqui na Etapa 2 (apos implementar canais).
    */
   @OnEvent(EVENTS.PECA_PROTOCOLADA)
   async handlePecaProtocolada(event: PecaProtocoladaEvent) {
@@ -199,74 +214,7 @@ export class EventsListener {
       });
       if (!arb) return;
 
-      // Caso 1: PETICAO_INICIAL quando status = AGUARDANDO_PETICAO
-      if (event.tipo === 'PETICAO_INICIAL' && arb.status === 'AGUARDANDO_PETICAO') {
-        // Marca prazo PETICAO como cumprido
-        await this.prisma.prazo.updateMany({
-          where: {
-            arbitragemId: event.arbitragemId,
-            tipo: 'PETICAO',
-            status: 'ATIVO',
-          },
-          data: { status: 'CUMPRIDO' },
-        });
-
-        // Transiciona status
-        await this.prisma.arbitragem.update({
-          where: { id: event.arbitragemId },
-          data: { status: 'AGUARDANDO_CONTESTACAO' },
-        });
-
-        // Cria prazo de 15 dias para requerido contestar (se tiver requerido)
-        if (event.requeridoId) {
-          const fim = new Date();
-          fim.setDate(fim.getDate() + 15);
-          await this.prisma.prazo.create({
-            data: {
-              arbitragemId: event.arbitragemId,
-              tipo: 'CONTESTACAO',
-              parteId: event.requeridoId,
-              fim,
-              status: 'ATIVO',
-            },
-          });
-
-          // Notifica requerido
-          await this.prisma.notificacao.create({
-            data: {
-              userId: event.requeridoId,
-              titulo: 'Peticao inicial protocolada - apresentar contestacao',
-              mensagem: `A peticao inicial do caso ${event.numero} foi protocolada por ${event.autorNome}. Voce tem 15 dias para apresentar contestacao.`,
-              tipo: 'sistema',
-              link: `/arbitragens/${event.arbitragemId}/documentos`,
-            },
-          });
-
-          // Email
-          const requerido = await this.prisma.user.findUnique({
-            where: { id: event.requeridoId },
-            select: { email: true, nome: true },
-          });
-          if (requerido) {
-            await this.emailService.enviarNotificacaoPrazo(
-              requerido.email,
-              requerido.nome,
-              {
-                tipo: 'CONTESTACAO',
-                diasRestantes: 15,
-                casoNumero: event.numero,
-              },
-            ).catch((err) => this.logger.warn(`Email contestacao falhou: ${err.message}`));
-          }
-        }
-
-        this.logger.log(
-          `[peca.protocolada] ${event.numero}: PETICAO_INICIAL -> AGUARDANDO_CONTESTACAO`,
-        );
-        return;
-      }
-
-      // Caso 2: CONTESTACAO quando status = AGUARDANDO_CONTESTACAO
+      // CONTESTACAO em AGUARDANDO_CONTESTACAO -> ANALISE_PROVAS
       if (event.tipo === 'CONTESTACAO' && arb.status === 'AGUARDANDO_CONTESTACAO') {
         // Marca prazo CONTESTACAO como cumprido
         await this.prisma.prazo.updateMany({
@@ -287,7 +235,7 @@ export class EventsListener {
         // Notifica arbitros designados
         const arbitros = await this.prisma.arbitragemArbitro.findMany({
           where: { arbitragemId: event.arbitragemId },
-          select: { arbitroId: true, arbitro: { select: { email: true, nome: true } } },
+          select: { arbitroId: true },
         });
 
         for (const a of arbitros) {
@@ -295,14 +243,14 @@ export class EventsListener {
             data: {
               userId: a.arbitroId,
               titulo: 'Caso pronto para analise',
-              mensagem: `O caso ${event.numero} recebeu a contestacao. Analise as pecas e provas e gere a sentenca quando apropriado.`,
+              mensagem: `O caso ${event.numero} recebeu a contestacao. Voce pode iniciar a analise e a construcao da sentenca no chat de sentenca.`,
               tipo: 'sistema',
               link: `/arbitragens/${event.arbitragemId}`,
             },
           });
         }
 
-        // Tambem notifica as partes que o caso esta em analise
+        // Notifica as partes que o caso esta em analise
         const partesIds = [event.requerenteId, event.requeridoId].filter(Boolean) as string[];
         for (const parteId of partesIds) {
           await this.prisma.notificacao.create({
