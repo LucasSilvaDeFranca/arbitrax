@@ -360,33 +360,37 @@ export default function ChatPage() {
               return (
                 <div key={msg.id} className="flex justify-start">
                   <div className="max-w-[85%] rounded-xl px-4 py-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700/50">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm">{'\u{1F916}'}</span>
-                        <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                          ArbitraX IA
-                        </p>
-                      </div>
-                      {/* Botao Encaminhar - so no Chat 2 e so pra arbitros */}
-                      {activeCanal === 'sentenca' && isArbitroOrAdmin && (
-                        <button
-                          onClick={() => openForwardModal(msg)}
-                          className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition whitespace-nowrap"
-                          title="Encaminhar como pergunta oficial ao Chat do Processo"
-                        >
-                          ↗ Encaminhar
-                        </button>
-                      )}
+                    {/* Header simples, sem botao */}
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-sm">{'\u{1F916}'}</span>
+                      <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                        ArbitraX IA
+                      </p>
                     </div>
                     <p className="text-sm whitespace-pre-wrap text-gray-800 dark:text-slate-200">
                       {msg.conteudo}
                     </p>
-                    <p className="text-xs mt-2 text-indigo-400 dark:text-indigo-500">
-                      {new Date(msg.createdAt).toLocaleTimeString('pt-BR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
+                    {/* Rodape do balao: botao Encaminhar (esquerda) + timestamp (direita) */}
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      {activeCanal === 'sentenca' && isArbitroOrAdmin ? (
+                        <button
+                          onClick={() => openForwardModal(msg)}
+                          className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition whitespace-nowrap inline-flex items-center gap-1"
+                          title="Encaminhar como pergunta oficial ao Chat do Processo"
+                        >
+                          <span>{'\u{21AA}'}</span>
+                          Encaminhar
+                        </button>
+                      ) : (
+                        <span />
+                      )}
+                      <p className="text-xs text-indigo-400 dark:text-indigo-500">
+                        {new Date(msg.createdAt).toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
                   </div>
                 </div>
               );
