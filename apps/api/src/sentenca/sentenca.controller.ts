@@ -22,7 +22,7 @@ export class SentencaController {
   constructor(private sentencaService: SentencaService) {}
 
   @Post('sentenca/gerar')
-  @Roles('ADMIN')
+  @Roles('ARBITRO', 'ADMIN')
   @ApiOperation({ summary: 'Acionar IA para gerar projeto de sentenca' })
   gerar(@Param('arbitragemId') arbitragemId: string) {
     return this.sentencaService.gerar(arbitragemId);
@@ -67,7 +67,7 @@ export class SentencaController {
   }
 
   @Post('sentenca/publicar')
-  @Roles('ADMIN')
+  @Roles('ARBITRO', 'ADMIN')
   @ApiOperation({ summary: 'Publicar sentenca e encerrar arbitragem' })
   publicar(@Param('arbitragemId') arbitragemId: string, @Request() req: any) {
     return this.sentencaService.publicar(arbitragemId, req.user.sub);
@@ -81,7 +81,7 @@ export class SentencaController {
   }
 
   @Post('ia/analisar-provas')
-  @Roles('ADMIN')
+  @Roles('ARBITRO', 'ADMIN')
   @ApiOperation({ summary: 'IA analisa suficiencia de provas' })
   analisarProvas(@Param('arbitragemId') arbitragemId: string) {
     return this.sentencaService.analisarProvas(arbitragemId);
