@@ -39,6 +39,9 @@ export interface VersaoResumo {
 }
 
 export const sentencaApi = {
+  gerar: (arbitragemId: string, token: string) =>
+    api<Sentenca>(`/api/v1/arbitragens/${arbitragemId}/sentenca/gerar`, { method: 'POST', token }),
+
   getCurrent: (arbitragemId: string, token: string) =>
     api<Sentenca>(`/api/v1/arbitragens/${arbitragemId}/sentenca`, { token }),
 

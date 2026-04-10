@@ -134,8 +134,44 @@ export default function SentencaPage() {
 
         {!sentenca ? (
           <div className="bg-white rounded-xl shadow p-8 text-center dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
-            <p className="text-gray-500 dark:text-slate-400">Nenhuma sentenca gerada ainda.</p>
-            <p className="text-sm text-gray-400 dark:text-slate-500 mt-2">A IA gerara o projeto quando as provas forem suficientes.</p>
+            <p className="text-gray-500 dark:text-slate-400 mb-2">Nenhuma sentenca gerada ainda.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500 mb-6">
+              Clique no botao abaixo para a IA analisar as pecas e provas e gerar um rascunho de sentenca.
+            </p>
+            {isArbitro && (
+              <button
+                onClick={async () => {
+                  if (!token) return;
+                  setActing(true);
+                  setError('');
+                  try {
+                    await sentencaApi.gerar(id, token);
+                    await load();
+                  } catch (err: any) {
+                    setError(err.message || 'Erro ao gerar sentenca');
+                  } finally {
+                    setActing(false);
+                  }
+                }}
+                disabled={acting}
+                className="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {acting ? (
+                  <>
+                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Gerando com IA...
+                  </>
+                ) : (
+                  <>
+                    <span>{'\u{1F916}'}</span>
+                    Gerar Sentenca com IA
+                  </>
+                )}
+              </button>
+            )}
           </div>
         ) : (
           <>
