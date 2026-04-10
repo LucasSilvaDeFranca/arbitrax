@@ -6,28 +6,8 @@ import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { chatApi, ChatMessage, CanalChat } from '@/lib/chat';
 import { arbitragensApi } from '@/lib/arbitragens';
+import { papelNoCaso } from '@/lib/papel-no-caso';
 import AuthLayout from '@/components/AuthLayout';
-
-/**
- * Determina o papel processual de um userId DENTRO deste caso especifico.
- * Prioridade: arbitro > requerente > advRequerente > requerido > advRequerido.
- * Retorna null se nao for participante.
- */
-function papelNoCaso(
-  userId: string | undefined,
-  arb: any,
-): 'Requerente' | 'Requerido' | 'Adv. Requerente' | 'Adv. Requerido' | 'Arbitro' | 'Admin' | null {
-  if (!userId || !arb) return null;
-  // Arbitro
-  if (Array.isArray(arb.arbitros) && arb.arbitros.some((a: any) => a.arbitro?.id === userId || a.arbitroId === userId)) {
-    return 'Arbitro';
-  }
-  if (arb.requerente?.id === userId) return 'Requerente';
-  if (arb.requerido?.id === userId) return 'Requerido';
-  if (arb.advRequerente?.id === userId || arb.advRequerenteId === userId) return 'Adv. Requerente';
-  if (arb.advRequerido?.id === userId || arb.advRequeridoId === userId) return 'Adv. Requerido';
-  return null;
-}
 
 /**
  * Dois canais por arbitragem:

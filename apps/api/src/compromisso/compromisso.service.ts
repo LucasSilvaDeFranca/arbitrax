@@ -11,9 +11,9 @@ import { PdfService } from '../pdf/pdf.service';
 import { StorageService } from '../storage/storage.service';
 import { CertificadoDigitalService } from '../certificado-digital/certificado-digital.service';
 import { PdfSignerService } from '../certificado-digital/pdf-signer.service';
+import { EmailService } from '../email/email.service';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as crypto from 'crypto';
-import * as nodemailer from 'nodemailer';
 
 /** Contexto validado de assinatura — reutilizado entre metodos */
 interface SigningContext {
@@ -26,7 +26,6 @@ interface SigningContext {
 @Injectable()
 export class CompromissoService {
   private readonly logger = new Logger(CompromissoService.name);
-  private smtpTransporter: nodemailer.Transporter | null = null;
 
   constructor(
     private prisma: PrismaService,
@@ -36,6 +35,7 @@ export class CompromissoService {
     private storage: StorageService,
     private certificadoService: CertificadoDigitalService,
     private pdfSignerService: PdfSignerService,
+    private emailService: EmailService,
   ) {}
 
   /** Validacao compartilhada: busca compromisso+arb, verifica parte, verifica ja assinou */
@@ -76,21 +76,6 @@ export class CompromissoService {
     }
   }
 
-  /** SMTP transporter lazy-init (reutiliza conexao entre envios) */
-  private getSmtpTransporter(): nodemailer.Transporter {
-    if (!this.smtpTransporter) {
-      this.smtpTransporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-        port: Number(process.env.SMTP_PORT || '587'),
-        secure: false,
-        auth: {
-          user: process.env.SMTP_USER || '',
-          pass: process.env.SMTP_PASS || '',
-        },
-      });
-    }
-    return this.smtpTransporter;
-  }
 
   /** Gerar compromisso arbitral, PDF e enviar para assinatura.
    *  Se allowReplace=true, regenera sobrescrevendo compromisso existente que ainda nao foi assinado. */
@@ -466,26 +451,7 @@ export class CompromissoService {
   }
 
   private async enviarEmailOtp(email: string, nome: string, codigo: string, casoNumero: string) {
-    const transporter = this.getSmtpTransporter();
-    const fromEmail = process.env.SMTP_FROM || 'contato@arbitrax.com.br';
-
-    await transporter.sendMail({
-      from: `"ArbitraX" <${fromEmail}>`,
-      to: email,
-      subject: `Codigo de assinatura - ${casoNumero}`,
-      html: `
-        <div style="max-width:600px;margin:0 auto;font-family:sans-serif;">
-          <h2 style="color:#1e3a5f;">Codigo de Assinatura Digital</h2>
-          <p>Prezado(a) <strong>${nome}</strong>,</p>
-          <p>Voce solicitou assinar o Termo de Compromisso Arbitral do caso <strong>${casoNumero}</strong>.</p>
-          <div style="background:#f0fdf4;border:2px solid #22c55e;border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
-            <p style="margin:0;font-size:36px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:8px;color:#166534;">${codigo}</p>
-          </div>
-          <p style="color:#666;font-size:13px;">Valido por <strong>10 minutos</strong>.</p>
-          <p style="color:#999;font-size:12px;">Se voce nao solicitou, ignore este email.</p>
-        </div>
-      `,
-    });
+    await this.emailService.enviarCodigoAssinatura(email, nome, codigo, casoNumero);
   }
 
   /** Assinatura avancada: valida OTP + assina */

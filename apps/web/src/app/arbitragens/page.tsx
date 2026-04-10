@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getToken, getUser } from '@/lib/auth';
 import { arbitragensApi, Arbitragem, ArbitragemListResponse } from '@/lib/arbitragens';
+import { papelSimples } from '@/lib/papel-no-caso';
 import AuthLayout from '@/components/AuthLayout';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -35,13 +36,6 @@ type PapelFiltro = 'todos' | 'requerente' | 'requerido';
  * Retorna o papel processual do user logado nesta arbitragem (por caso).
  * O user.id deve bater com requerente.id ou requerido.id do caso.
  */
-function papelNoCaso(arb: Arbitragem, userId?: string): 'requerente' | 'requerido' | 'outro' {
-  if (!userId) return 'outro';
-  if (arb.requerente?.id === userId) return 'requerente';
-  if (arb.requerido?.id === userId) return 'requerido';
-  return 'outro';
-}
-
 export default function ArbitragensListPage() {
   const router = useRouter();
   const [data, setData] = useState<ArbitragemListResponse | null>(null);
@@ -69,7 +63,7 @@ export default function ArbitragensListPage() {
     return data.data.filter((arb) => {
       // Filtro por papel processual
       if (papelFiltro !== 'todos') {
-        const papel = papelNoCaso(arb, user?.id);
+        const papel = papelSimples(arb, user?.id);
         if (papel !== papelFiltro) return false;
       }
       // Filtro por texto (numero, nome requerente, nome requerido, status)
@@ -183,7 +177,7 @@ export default function ArbitragensListPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                   {arbsFiltradas.map((arb: Arbitragem) => {
-                    const papel = papelNoCaso(arb, user?.id);
+                    const papel = papelSimples(arb, user?.id);
                     return (
                       <tr
                         key={arb.id}
