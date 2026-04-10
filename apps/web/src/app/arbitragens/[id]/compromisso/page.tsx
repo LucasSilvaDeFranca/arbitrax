@@ -62,6 +62,7 @@ export default function CompromissoPage() {
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState('');
   const [signSuccess, setSignSuccess] = useState('');
+  const [showSignModal, setShowSignModal] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [gerarError, setGerarError] = useState('');
 
@@ -265,68 +266,39 @@ export default function CompromissoPage() {
                 {/* Sign action for current user */}
                 {isParty && !userAlreadySigned && !bothSigned && compromisso.pdfUrl && (
                   <div className="mt-6 pt-4 border-t border-gray-200 dark:border-slate-700/50">
-                    {certStatus?.temCertificado && !certStatus?.expirado ? (
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-slate-300 mb-3">
-                          Certificado: <span className="font-medium text-gray-800 dark:text-white">{certStatus.cn}</span>
-                        </p>
-
-                        {signError && (
-                          <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-sm">
-                            {signError}
-                          </div>
-                        )}
-
-                        {signSuccess && (
-                          <div className="mb-3 p-3 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg text-sm">
-                            {signSuccess}
-                          </div>
-                        )}
-
-                        <button
-                          onClick={handleAssinar}
-                          disabled={signing}
-                          className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {signing ? (
-                            <>
-                              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                              </svg>
-                              Assinando...
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                              </svg>
-                              Assinar com Certificado Digital A1
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg mb-3">
-                          <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                            {certStatus?.expirado
-                              ? 'Seu certificado digital A1 esta expirado. Faca upload de um novo certificado para assinar.'
-                              : 'Voce precisa configurar seu certificado digital A1 para assinar este documento.'}
-                          </p>
-                        </div>
-                        <Link
-                          href="/certificado-digital"
-                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition font-medium text-sm"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          Configurar Certificado
-                        </Link>
+                    {signError && (
+                      <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                        {signError}
                       </div>
                     )}
+                    {signSuccess && (
+                      <div className="mb-3 p-3 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg text-sm">
+                        {signSuccess}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => setShowSignModal(true)}
+                      disabled={signing}
+                      className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {signing ? (
+                        <>
+                          <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Assinando...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                          Assinar Compromisso
+                        </>
+                      )}
+                    </button>
                   </div>
                 )}
               </div>
@@ -356,6 +328,81 @@ export default function CompromissoPage() {
           )}
         </div>
       </div>
+
+      {/* Modal: escolher metodo de assinatura */}
+      {showSignModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100 mb-2">
+              Como deseja assinar?
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
+              Escolha o metodo de assinatura para o Termo de Compromisso Arbitral.
+            </p>
+
+            <div className="space-y-3">
+              {/* Opcao 1: Certificado A1 */}
+              {certStatus?.temCertificado && !certStatus?.expirado ? (
+                <button
+                  onClick={() => {
+                    setShowSignModal(false);
+                    handleAssinar();
+                  }}
+                  className="w-full p-4 border-2 border-green-500 dark:border-green-600 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 transition text-left flex items-start gap-3"
+                >
+                  <div className="text-2xl mt-0.5">{'\u{1F510}'}</div>
+                  <div>
+                    <p className="font-semibold text-gray-800 dark:text-slate-100">Assinar com Certificado Digital A1</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                      Assinatura qualificada ICP-Brasil ({certStatus.cn})
+                    </p>
+                  </div>
+                </button>
+              ) : (
+                <div className="w-full p-4 border-2 border-gray-200 dark:border-slate-700 rounded-xl opacity-50">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl mt-0.5">{'\u{1F510}'}</div>
+                    <div>
+                      <p className="font-semibold text-gray-800 dark:text-slate-100">Certificado Digital A1</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                        {certStatus?.expirado
+                          ? 'Certificado expirado. Atualize em Configuracoes.'
+                          : 'Nenhum certificado configurado.'}
+                      </p>
+                      <Link href="/certificado-digital" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block">
+                        Configurar certificado
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Opcao 2: Assinatura por email (em breve) */}
+              <div className="w-full p-4 border-2 border-gray-200 dark:border-slate-700 rounded-xl opacity-50 cursor-not-allowed">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl mt-0.5">{'\u{1F4E7}'}</div>
+                  <div>
+                    <p className="font-semibold text-gray-800 dark:text-slate-100">Assinatura por Email</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                      Validacao por codigo enviado ao seu email
+                    </p>
+                    <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full mt-1 inline-block">
+                      Em breve
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowSignModal(false)}
+              className="w-full mt-4 py-2 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </AuthLayout>
   );
 }
