@@ -34,10 +34,39 @@ export default function SentencaPage() {
   const [tab, setTab] = useState<'sentenca' | 'versoes'>('sentenca');
   const [certStatus, setCertStatus] = useState<CertificadoStatus | null>(null);
   const [assinando, setAssinando] = useState(false);
+  // Edicao manual
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const token = getToken();
   const user = getUser();
   const isArbitro = user?.role === 'ARBITRO';
+
+  const startEdit = (field: string, currentValue: string) => {
+    setEditingField(field);
+    setEditValue(currentValue || '');
+  };
+
+  const cancelEdit = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  const saveEdit = async () => {
+    if (!token || !editingField) return;
+    setSaving(true);
+    try {
+      await sentencaApi.editar(id, { [editingField]: editValue }, token);
+      await load();
+      setEditingField(null);
+      setEditValue('');
+    } catch (err: any) {
+      setError(err.message || 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const load = async () => {
     if (!token) { router.push('/login'); return; }
@@ -197,29 +226,62 @@ export default function SentencaPage() {
 
             {tab === 'sentenca' && (
               <div className="space-y-6">
-                {/* Ementa */}
-                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Ementa</h3>
-                  <p className="text-gray-800 dark:text-slate-100 italic">{sentenca.conteudo.ementa}</p>
-                </div>
+                {/* Secoes editaveis */}
+                {([
+                  { key: 'ementa', label: 'Ementa', extra: 'italic' },
+                  { key: 'relatorio', label: 'Relatorio', extra: '' },
+                  { key: 'fundamentacao', label: 'Fundamentacao', extra: '' },
+                  { key: 'dispositivo', label: 'Dispositivo (Decisao)', extra: 'font-medium border-l-4 border-primary-500' },
+                ] as const).map(({ key, label, extra }) => {
+                  const isEditing = editingField === key;
+                  const canEdit = isArbitro && (sentenca.status === 'RASCUNHO' || sentenca.status === 'EM_REVISAO');
+                  const value = (sentenca.conteudo as any)[key] || '';
 
-                {/* Relatorio */}
-                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Relatorio</h3>
-                  <p className="text-gray-800 dark:text-slate-100 whitespace-pre-wrap">{sentenca.conteudo.relatorio}</p>
-                </div>
-
-                {/* Fundamentacao */}
-                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Fundamentacao</h3>
-                  <p className="text-gray-800 dark:text-slate-100 whitespace-pre-wrap">{sentenca.conteudo.fundamentacao}</p>
-                </div>
-
-                {/* Dispositivo */}
-                <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none border-l-4 border-primary-500">
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Dispositivo (Decisao)</h3>
-                  <p className="text-gray-800 dark:text-slate-100 font-medium whitespace-pre-wrap">{sentenca.conteudo.dispositivo}</p>
-                </div>
+                  return (
+                    <div key={key} className={`bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none ${extra.includes('border-l') ? 'border-l-4 border-primary-500' : ''}`}>
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">{label}</h3>
+                        {canEdit && !isEditing && (
+                          <button
+                            onClick={() => startEdit(key, value)}
+                            className="text-xs px-2 py-1 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition"
+                          >
+                            Editar
+                          </button>
+                        )}
+                      </div>
+                      {isEditing ? (
+                        <div>
+                          <textarea
+                            rows={8}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 text-sm"
+                          />
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={saveEdit}
+                              disabled={saving}
+                              className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm disabled:opacity-50"
+                            >
+                              {saving ? 'Salvando...' : 'Salvar'}
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="px-4 py-1.5 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 text-sm"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className={`text-gray-800 dark:text-slate-100 whitespace-pre-wrap ${extra.includes('italic') ? 'italic' : ''} ${extra.includes('font-medium') ? 'font-medium' : ''}`}>
+                          {value}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {/* Custas */}
                 <div className="bg-white rounded-xl shadow p-6 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">

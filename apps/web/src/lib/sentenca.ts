@@ -48,6 +48,11 @@ export const sentencaApi = {
   getVersoes: (arbitragemId: string, token: string) =>
     api<VersaoResumo[]>(`/api/v1/arbitragens/${arbitragemId}/sentenca/versoes`, { token }),
 
+  editar: (arbitragemId: string, conteudo: { ementa?: string; relatorio?: string; fundamentacao?: string; dispositivo?: string }, token: string) =>
+    api(`/api/v1/arbitragens/${arbitragemId}/sentenca/editar`, {
+      method: 'POST', body: JSON.stringify(conteudo), token,
+    }),
+
   aprovar: (arbitragemId: string, token: string) =>
     api(`/api/v1/arbitragens/${arbitragemId}/sentenca/aprovar`, { method: 'POST', token }),
 

@@ -59,6 +59,17 @@ export class SentencaController {
     return this.sentencaService.sugerir(arbitragemId, req.user.sub, dto.sugestoes);
   }
 
+  @Post('sentenca/editar')
+  @Roles('ARBITRO', 'ADMIN')
+  @ApiOperation({ summary: 'Editar manualmente o conteudo da sentenca (ementa, relatorio, fundamentacao, dispositivo)' })
+  editar(
+    @Param('arbitragemId') arbitragemId: string,
+    @Body() body: { ementa?: string; relatorio?: string; fundamentacao?: string; dispositivo?: string },
+    @Request() req: any,
+  ) {
+    return this.sentencaService.editarConteudo(arbitragemId, req.user.sub, body);
+  }
+
   @Post('sentenca/ratificar')
   @Roles('ARBITRO')
   @ApiOperation({ summary: 'Arbitro ratifica sentenca final (painel web)' })

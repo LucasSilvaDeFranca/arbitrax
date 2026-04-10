@@ -118,6 +118,7 @@ Responda EXCLUSIVAMENTE em JSON valido:
     pecas: Array<{ tipo: string; conteudo?: string }>,
     provas: Array<{ tipo: string; descricao?: string }>,
     arbitragemId?: string,
+    dialeticaChat?: string,
   ): Promise<SentencaGerada> {
     // Buscar contexto via RAG
     let contextoRag = '';
@@ -149,7 +150,10 @@ PECAS:
 ${pecas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.conteudo?.substring(0, 500) || '(anexo)'}`).join('\n')}
 
 PROVAS:
-${provas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.descricao || '(sem descricao)'}`).join('\n')}${contextoRag}
+${provas.map((p, i) => `${i + 1}. [${p.tipo}] ${p.descricao || '(sem descricao)'}`).join('\n')}${contextoRag}${dialeticaChat ? `
+
+DIALETICA ARBITRO + IA (historico do chat de sentenca - IMPORTANTE: considere as conclusoes e direcionamentos discutidos aqui ao redigir a sentenca):
+${dialeticaChat}` : ''}
 
 REGRAS:
 - Aplique Lei 9.307/96, equidade, usos e costumes

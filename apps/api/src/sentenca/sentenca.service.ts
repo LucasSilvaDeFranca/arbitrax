@@ -27,14 +27,18 @@ export class SentencaService {
   async gerar(arbitragemId: string) {
     const arb = await this.getArbitragem(arbitragemId);
 
-    const pecas = await this.prisma.peca.findMany({
-      where: { arbitragemId },
-    });
-    const provas = await this.prisma.prova.findMany({
-      where: { arbitragemId },
-    });
+    const [pecas, provas, chatHistorico] = await Promise.all([
+      this.prisma.peca.findMany({ where: { arbitragemId } }),
+      this.prisma.prova.findMany({ where: { arbitragemId } }),
+      // Carregar historico do Chat de Sentenca (dialetica arbitro+IA)
+      this.prisma.chatMessage.findMany({
+        where: { arbitragemId, canal: { in: ['sentenca', 'arbitragem'] } },
+        orderBy: { createdAt: 'asc' },
+        take: 50,
+        select: { tipo: true, conteudo: true, createdAt: true, user: { select: { nome: true } } },
+      }),
+    ]);
 
-    // Verificar versao atual
     const ultimaSentenca = await this.prisma.sentenca.findFirst({
       where: { arbitragemId },
       orderBy: { versao: 'desc' },
@@ -55,6 +59,13 @@ export class SentencaService {
       pecas.map((p) => ({ tipo: p.tipo, conteudo: p.conteudo || undefined })),
       provas.map((p) => ({ tipo: p.tipo, descricao: p.descricao || undefined })),
       arbitragemId,
+      // Passa historico do chat de sentenca como contexto adicional
+      chatHistorico.length > 0
+        ? chatHistorico.map((m) => {
+            const autor = m.tipo === 'ia' ? 'IA' : m.user?.nome || 'Arbitro';
+            return `[${autor}]: ${(m.conteudo || '').slice(0, 500)}`;
+          }).join('\n\n')
+        : undefined,
     );
 
     const conteudoTexto = JSON.stringify(resultado);
@@ -160,6 +171,47 @@ export class SentencaService {
     });
 
     return { message: 'Sentenca aprovada', versao: sentenca.versao };
+  }
+
+  /** Arbitro edita manualmente o conteudo da sentenca (sem gerar nova versao) */
+  async editarConteudo(
+    arbitragemId: string,
+    userId: string,
+    conteudo: { ementa?: string; relatorio?: string; fundamentacao?: string; dispositivo?: string },
+  ) {
+    const sentenca = await this.getUltimaSentenca(arbitragemId);
+
+    if (sentenca.status !== 'RASCUNHO' && sentenca.status !== 'EM_REVISAO') {
+      throw new BadRequestException('Sentenca nao esta em estado de revisao');
+    }
+
+    let atual: any = {};
+    try { atual = JSON.parse(sentenca.conteudoTexto); } catch {}
+
+    // Merge: so atualiza os campos enviados
+    if (conteudo.ementa !== undefined) atual.ementa = conteudo.ementa;
+    if (conteudo.relatorio !== undefined) atual.relatorio = conteudo.relatorio;
+    if (conteudo.fundamentacao !== undefined) atual.fundamentacao = conteudo.fundamentacao;
+    if (conteudo.dispositivo !== undefined) atual.dispositivo = conteudo.dispositivo;
+
+    const conteudoTexto = JSON.stringify(atual);
+    const hash = crypto.createHash('sha256').update(conteudoTexto).digest('hex');
+
+    await this.prisma.sentenca.update({
+      where: { id: sentenca.id },
+      data: { conteudoTexto, hashSha256: hash },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        acao: 'SENTENCA_EDITADA_MANUALMENTE',
+        entidade: 'sentenca',
+        entidadeId: sentenca.id,
+      },
+    });
+
+    return { message: 'Sentenca atualizada', versao: sentenca.versao, conteudo: atual };
   }
 
   /** Arbitro envia sugestoes (via painel web) → IA refina */
