@@ -61,10 +61,7 @@ export class CompromissoController {
   @Post('assinar-simples')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Assinatura eletronica simples (sem certificado A1) - registra aceite + IP + hash',
-    description: 'Para usuarios sem certificado digital. Registra evidencias: nome, CPF, email, IP, user-agent, hash do documento, timestamp. Adiciona pagina visual ao PDF. Valida como assinatura eletronica simples (Lei 14.063/2020 Art. 4).',
-  })
+  @ApiOperation({ summary: 'Assinatura eletronica simples (sem certificado, sem OTP)' })
   assinarSimples(
     @Param('arbitragemId') arbitragemId: string,
     @Request() req: any,
@@ -73,6 +70,33 @@ export class CompromissoController {
   ) {
     const ip = forwardedFor?.split(',')[0]?.trim() || req.ip || 'desconhecido';
     return this.compromissoService.assinarSimples(arbitragemId, req.user.sub, { ip, userAgent });
+  }
+
+  @Post('enviar-otp')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Envia codigo OTP por email para assinatura avancada (valida CPF antes)' })
+  enviarOtp(
+    @Param('arbitragemId') arbitragemId: string,
+    @Body() body: { cpf: string },
+    @Request() req: any,
+  ) {
+    return this.compromissoService.enviarOtpAssinatura(arbitragemId, req.user.sub, body.cpf);
+  }
+
+  @Post('assinar-avancada')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Assinar com OTP validado (assinatura avancada por email + CPF)' })
+  assinarAvancada(
+    @Param('arbitragemId') arbitragemId: string,
+    @Body() body: { codigo: string },
+    @Request() req: any,
+    @Headers('x-forwarded-for') forwardedFor: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    const ip = forwardedFor?.split(',')[0]?.trim() || req.ip || 'desconhecido';
+    return this.compromissoService.assinarAvancada(arbitragemId, req.user.sub, body.codigo, { ip, userAgent });
   }
 }
 

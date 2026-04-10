@@ -138,6 +138,20 @@ export class EmailService {
     `);
   }
 
+  async enviarCodigoAssinatura(email: string, nome: string, codigo: string, casoNumero: string) {
+    await this.send(email, `Codigo de assinatura - ${casoNumero}`, `
+      <h2>Codigo de Assinatura Digital</h2>
+      <p>Prezado(a) <strong>${nome}</strong>,</p>
+      <p>Voce solicitou assinar o Termo de Compromisso Arbitral do caso <strong>${casoNumero}</strong>.</p>
+      <p>Seu codigo de verificacao:</p>
+      <div style="background:#f0fdf4;border:2px solid #22c55e;border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
+        <p style="margin:0;font-size:36px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:8px;color:#166534;">${codigo}</p>
+      </div>
+      <p style="color:#666;font-size:13px;">Este codigo e valido por <strong>10 minutos</strong>. Nao compartilhe com ninguem.</p>
+      <p style="color:#999;font-size:12px;margin-top:20px;">Se voce nao solicitou esta assinatura, ignore este email.</p>
+    `);
+  }
+
   // ── Template wrapper ──
 
   private wrapTemplate(title: string, body: string): string {

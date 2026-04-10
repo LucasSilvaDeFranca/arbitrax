@@ -229,6 +229,10 @@ model Compromisso {
   assinReqdoAt      DateTime? @map("assin_reqdo_at")
   assinaturaReqCn   String?   @map("assinatura_req_cn")
   assinaturaReqdoCn String?   @map("assinatura_reqdo_cn")
+  // OTP para assinatura avancada por email
+  otpCode       String?   @map("otp_code")
+  otpUserId     String?   @map("otp_user_id")
+  otpExpiresAt  DateTime? @map("otp_expires_at")
   status            String    @default("pendente")
   createdAt         DateTime  @default(now()) @map("created_at")
 

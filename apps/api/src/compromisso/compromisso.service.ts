@@ -357,16 +357,24 @@ export class CompromissoService {
     };
   }
 
-  /**
-   * Assinatura eletronica simples: sem certificado A1.
-   * Registra aceite com evidencias (nome, CPF, email, IP, user-agent, hash do doc, timestamp).
-   * Adiciona pagina visual ao PDF (sem PKCS7 criptografico).
-   * Valida como assinatura eletronica simples conforme Lei 14.063/2020 Art. 4.
-   */
+  /** Assinatura simples: delega pro executarAssinaturaSimples com tipo 'simples' */
   async assinarSimples(
     arbitragemId: string,
     userId: string,
     meta: { ip: string; userAgent: string },
+  ) {
+    return this.executarAssinaturaSimples(arbitragemId, userId, meta, 'simples');
+  }
+
+  /**
+   * Logica compartilhada entre assinatura simples e avancada.
+   * tipo: 'simples' (aceite direto) ou 'avancada' (validado por OTP + CPF)
+   */
+  private async executarAssinaturaSimples(
+    arbitragemId: string,
+    userId: string,
+    meta: { ip: string; userAgent: string },
+    tipo: 'simples' | 'avancada' = 'simples',
   ) {
     // 1-4: mesmas validacoes do assinarDigital
     const compromisso = await this.prisma.compromisso.findUnique({ where: { arbitragemId } });
@@ -437,7 +445,7 @@ export class CompromissoService {
     drawInfo('Assinado por:', signerName);
     drawInfo('CPF/CNPJ:', user?.cpfCnpj || 'N/I');
     drawInfo('Email:', user?.email || 'N/I');
-    drawInfo('Metodo:', 'Assinatura Eletronica Simples');
+    drawInfo('Metodo:', tipo === 'avancada' ? 'Assinatura Avancada (Email + CPF)' : 'Assinatura Eletronica Simples');
     drawInfo('IP:', meta.ip);
     drawInfo('Data/Hora:', dataAssinatura);
     drawInfo('Hash SHA-256:', docHash.substring(0, 40) + '...');
@@ -483,8 +491,9 @@ export class CompromissoService {
       hashSha256: hash,
     };
 
-    // Registrar como "Assinatura Simples - Nome (CPF)"
-    const cnSimples = `Assinatura Simples - ${signerLabel}`;
+    const cnSimples = tipo === 'avancada'
+      ? `Assinatura Avancada (Email) - ${signerLabel}`
+      : `Assinatura Simples - ${signerLabel}`;
 
     if (isRequerente) {
       updateData.assinReqAt = new Date();
@@ -524,11 +533,11 @@ export class CompromissoService {
     await this.prisma.auditLog.create({
       data: {
         userId,
-        acao: 'COMPROMISSO_ASSINADO_SIMPLES',
+        acao: tipo === 'avancada' ? 'COMPROMISSO_ASSINADO_AVANCADA' : 'COMPROMISSO_ASSINADO_SIMPLES',
         entidade: 'compromisso',
         entidadeId: compromisso.id,
         dadosDepois: {
-          metodo: 'assinatura_simples',
+          metodo: tipo === 'avancada' ? 'email_otp' : 'assinatura_simples',
           signerName,
           cpfCnpj: user?.cpfCnpj,
           email: user?.email,
@@ -550,6 +559,144 @@ export class CompromissoService {
       role: isRequerente ? 'requerente' : 'requerido',
       metodo: 'simples',
     };
+  }
+
+  /**
+   * Envia OTP por email para assinatura avancada.
+   * Valida CPF/CNPJ antes de enviar (prova de identidade).
+   */
+  async enviarOtpAssinatura(arbitragemId: string, userId: string, cpfDigitado: string) {
+    // Validacoes basicas
+    const compromisso = await this.prisma.compromisso.findUnique({ where: { arbitragemId } });
+    if (!compromisso) throw new NotFoundException('Compromisso nao encontrado');
+    if (!compromisso.pdfUrl) throw new BadRequestException('PDF ainda nao foi gerado');
+
+    const arb = await this.prisma.arbitragem.findUnique({ where: { id: arbitragemId } });
+    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
+
+    const isRequerente = arb.requerenteId === userId;
+    const isRequerido = arb.requeridoId === userId;
+    if (!isRequerente && !isRequerido) throw new BadRequestException('Voce nao e parte desta arbitragem');
+    if (isRequerente && compromisso.assinReqAt) throw new BadRequestException('Requerente ja assinou');
+    if (isRequerido && compromisso.assinReqdoAt) throw new BadRequestException('Requerido ja assinou');
+
+    // Buscar user e validar CPF
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { nome: true, cpfCnpj: true, email: true },
+    });
+    if (!user) throw new BadRequestException('Usuario nao encontrado');
+
+    // Strip formatacao pra comparar: remove pontos, hifens, barras
+    const cpfLimpo = cpfDigitado.replace(/\D/g, '');
+    const cpfDb = (user.cpfCnpj || '').replace(/\D/g, '');
+    if (!cpfLimpo || cpfLimpo !== cpfDb) {
+      throw new BadRequestException('CPF/CNPJ nao confere com seu cadastro');
+    }
+
+    // Gerar codigo OTP de 6 digitos
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+    // Salvar no compromisso
+    await this.prisma.compromisso.update({
+      where: { id: compromisso.id },
+      data: {
+        otpCode: codigo,
+        otpUserId: userId,
+        otpExpiresAt: expiresAt,
+      },
+    });
+
+    // Enviar email com codigo OTP
+    await this.enviarEmailOtp(user.email, user.nome, codigo, arb.numero);
+
+    this.logger.log(`[enviar-otp] ${arb.numero}: codigo enviado para ${user.email.replace(/(.{2}).+(@)/, '$1***$2')}`);
+
+    // Retornar email mascarado
+    const emailMascarado = user.email.replace(/(.{2}).+(@)/, '$1***$2');
+    return {
+      enviado: true,
+      email: emailMascarado,
+      expiraEm: '10 minutos',
+    };
+  }
+
+  private async enviarEmailOtp(email: string, nome: string, codigo: string, casoNumero: string) {
+    // Acessa o EmailService que esta injetado via compromisso.module (nao diretamente)
+    // Como o CompromissoService nao tem EmailService injetado, preciso acessar via PrismaModule
+    // Solucao pragmatica: usar nodemailer direto com as mesmas configs
+    const nodemailer = await import('nodemailer');
+    const transporter = nodemailer.default.createTransport({
+      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+      port: Number(process.env.SMTP_PORT || '587'),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASS || '',
+      },
+    });
+
+    const fromEmail = process.env.SMTP_FROM || 'contato@arbitrax.com.br';
+
+    await transporter.sendMail({
+      from: `"ArbitraX" <${fromEmail}>`,
+      to: email,
+      subject: `Codigo de assinatura - ${casoNumero}`,
+      html: `
+        <div style="max-width:600px;margin:0 auto;font-family:sans-serif;">
+          <h2 style="color:#1e3a5f;">Codigo de Assinatura Digital</h2>
+          <p>Prezado(a) <strong>${nome}</strong>,</p>
+          <p>Voce solicitou assinar o Termo de Compromisso Arbitral do caso <strong>${casoNumero}</strong>.</p>
+          <p>Seu codigo de verificacao:</p>
+          <div style="background:#f0fdf4;border:2px solid #22c55e;border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
+            <p style="margin:0;font-size:36px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:8px;color:#166534;">${codigo}</p>
+          </div>
+          <p style="color:#666;font-size:13px;">Este codigo e valido por <strong>10 minutos</strong>.</p>
+          <p style="color:#999;font-size:12px;">Se voce nao solicitou, ignore este email.</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+          <p style="color:#aaa;font-size:11px;">ArbitraX - Plataforma de Arbitragem Digital</p>
+        </div>
+      `,
+    });
+  }
+
+  /**
+   * Assinatura avancada: valida OTP + assina.
+   * Chamada depois do enviarOtpAssinatura ter sido feito com sucesso.
+   */
+  async assinarAvancada(
+    arbitragemId: string,
+    userId: string,
+    codigoDigitado: string,
+    meta: { ip: string; userAgent: string },
+  ) {
+    const compromisso = await this.prisma.compromisso.findUnique({ where: { arbitragemId } });
+    if (!compromisso) throw new NotFoundException('Compromisso nao encontrado');
+
+    // Validar OTP
+    if (!compromisso.otpCode || !compromisso.otpUserId || !compromisso.otpExpiresAt) {
+      throw new BadRequestException('Nenhum codigo OTP foi solicitado. Envie o codigo primeiro.');
+    }
+    if (compromisso.otpUserId !== userId) {
+      throw new BadRequestException('O codigo foi solicitado por outro usuario.');
+    }
+    if (new Date() > compromisso.otpExpiresAt) {
+      throw new BadRequestException('Codigo expirado. Solicite um novo codigo.');
+    }
+    if (compromisso.otpCode !== codigoDigitado.trim()) {
+      throw new BadRequestException('Codigo invalido. Verifique e tente novamente.');
+    }
+
+    // Limpar OTP antes de assinar (evita reuso)
+    await this.prisma.compromisso.update({
+      where: { id: compromisso.id },
+      data: { otpCode: null, otpUserId: null, otpExpiresAt: null },
+    });
+
+    // Reusar a logica do assinarSimples, mas com metodo 'avancada' e label diferente
+    // Vou chamar diretamente passando o metodo
+    return this.executarAssinaturaSimples(arbitragemId, userId, meta, 'avancada');
   }
 
   /** Webhook ZapSign */

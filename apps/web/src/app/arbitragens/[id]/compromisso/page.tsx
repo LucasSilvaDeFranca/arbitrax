@@ -63,6 +63,14 @@ export default function CompromissoPage() {
   const [signError, setSignError] = useState('');
   const [signSuccess, setSignSuccess] = useState('');
   const [showSignModal, setShowSignModal] = useState(false);
+  // OTP flow states
+  const [otpStep, setOtpStep] = useState<'escolha' | 'cpf' | 'codigo' | 'sucesso'>('escolha');
+  const [otpCpf, setOtpCpf] = useState('');
+  const [otpCodigo, setOtpCodigo] = useState('');
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
   const [gerando, setGerando] = useState(false);
   const [gerarError, setGerarError] = useState('');
 
@@ -348,79 +356,227 @@ export default function CompromissoPage() {
         </div>
       </div>
 
-      {/* Modal: escolher metodo de assinatura */}
+      {/* Modal: escolher metodo de assinatura + fluxo OTP */}
       {showSignModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100 mb-2">
-              Como deseja assinar?
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
-              Escolha o metodo de assinatura para o Termo de Compromisso Arbitral.
-            </p>
 
-            <div className="space-y-3">
-              {/* Opcao 1: Certificado A1 */}
-              {certStatus?.temCertificado && !certStatus?.expirado ? (
-                <button
-                  onClick={() => {
-                    setShowSignModal(false);
-                    handleAssinar();
-                  }}
-                  className="w-full p-4 border-2 border-green-500 dark:border-green-600 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 transition text-left flex items-start gap-3"
-                >
-                  <div className="text-2xl mt-0.5">{'\u{1F510}'}</div>
-                  <div>
-                    <p className="font-semibold text-gray-800 dark:text-slate-100">Assinar com Certificado Digital A1</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                      Assinatura qualificada ICP-Brasil ({certStatus.cn})
-                    </p>
-                  </div>
-                </button>
-              ) : (
-                <div className="w-full p-4 border-2 border-gray-200 dark:border-slate-700 rounded-xl opacity-50">
-                  <div className="flex items-start gap-3">
-                    <div className="text-2xl mt-0.5">{'\u{1F510}'}</div>
-                    <div>
-                      <p className="font-semibold text-gray-800 dark:text-slate-100">Certificado Digital A1</p>
-                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                        {certStatus?.expirado
-                          ? 'Certificado expirado. Atualize em Configuracoes.'
-                          : 'Nenhum certificado configurado.'}
-                      </p>
-                      <Link href="/certificado-digital" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block">
-                        Configurar certificado
-                      </Link>
+            {/* Step: ESCOLHA do metodo */}
+            {otpStep === 'escolha' && (
+              <>
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100 mb-2">
+                  Como deseja assinar?
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
+                  Escolha o metodo de assinatura para o Termo de Compromisso Arbitral.
+                </p>
+                <div className="space-y-3">
+                  {certStatus?.temCertificado && !certStatus?.expirado ? (
+                    <button
+                      onClick={() => { setShowSignModal(false); setOtpStep('escolha'); handleAssinar(); }}
+                      className="w-full p-4 border-2 border-green-500 dark:border-green-600 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 transition text-left flex items-start gap-3"
+                    >
+                      <div className="text-2xl mt-0.5">{'\u{1F510}'}</div>
+                      <div>
+                        <p className="font-semibold text-gray-800 dark:text-slate-100">Certificado Digital A1</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Assinatura qualificada ICP-Brasil ({certStatus.cn})</p>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="w-full p-4 border-2 border-gray-200 dark:border-slate-700 rounded-xl opacity-50">
+                      <div className="flex items-start gap-3">
+                        <div className="text-2xl mt-0.5">{'\u{1F510}'}</div>
+                        <div>
+                          <p className="font-semibold text-gray-800 dark:text-slate-100">Certificado Digital A1</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                            {certStatus?.expirado ? 'Certificado expirado.' : 'Nenhum certificado configurado.'}
+                          </p>
+                          <Link href="/certificado-digital" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block">
+                            Configurar certificado
+                          </Link>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {/* Opcao 2: Assinatura eletronica simples (sem certificado) */}
-              <button
-                onClick={() => {
-                  setShowSignModal(false);
-                  handleAssinarSimples();
-                }}
-                className="w-full p-4 border-2 border-blue-500 dark:border-blue-600 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition text-left flex items-start gap-3"
-              >
-                <div className="text-2xl mt-0.5">{'\u{1F4E7}'}</div>
-                <div>
-                  <p className="font-semibold text-gray-800 dark:text-slate-100">Assinatura Eletronica Simples</p>
-                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                    Registra seu aceite com nome, CPF, email, IP e hash do documento.
-                    Valida conforme Lei 14.063/2020.
+                  <button
+                    onClick={() => { setOtpStep('cpf'); setOtpError(''); setOtpCpf(''); }}
+                    className="w-full p-4 border-2 border-blue-500 dark:border-blue-600 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition text-left flex items-start gap-3"
+                  >
+                    <div className="text-2xl mt-0.5">{'\u{1F4E7}'}</div>
+                    <div>
+                      <p className="font-semibold text-gray-800 dark:text-slate-100">Assinatura por Email</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                        Validacao por CPF + codigo enviado ao seu email. Assinatura avancada conforme Lei 14.063/2020.
+                      </p>
+                    </div>
+                  </button>
+                </div>
+                <button onClick={() => { setShowSignModal(false); setOtpStep('escolha'); }}
+                  className="w-full mt-4 py-2 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition">
+                  Cancelar
+                </button>
+              </>
+            )}
+
+            {/* Step: CONFIRMAR CPF */}
+            {otpStep === 'cpf' && (
+              <>
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100 mb-2">
+                  Confirme seu CPF/CNPJ
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
+                  Digite seu CPF ou CNPJ para confirmar sua identidade. Um codigo sera enviado ao seu email cadastrado.
+                </p>
+                {otpError && (
+                  <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                    {otpError}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={otpCpf}
+                  onChange={(e) => setOtpCpf(e.target.value)}
+                  placeholder="000.000.000-00"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-lg font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 mb-4"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      document.getElementById('btn-enviar-otp')?.click();
+                    }
+                  }}
+                />
+                <button
+                  id="btn-enviar-otp"
+                  disabled={otpLoading || otpCpf.replace(/\D/g, '').length < 11}
+                  onClick={async () => {
+                    setOtpLoading(true);
+                    setOtpError('');
+                    try {
+                      const res = await api<{ enviado: boolean; email: string }>(`/api/v1/arbitragens/${id}/compromisso/enviar-otp`, {
+                        method: 'POST', token: token!, body: JSON.stringify({ cpf: otpCpf }),
+                      });
+                      setOtpEmail(res.email);
+                      setOtpStep('codigo');
+                      setOtpCodigo('');
+                      setOtpCooldown(60);
+                      // Timer de cooldown pra reenvio
+                      const timer = setInterval(() => {
+                        setOtpCooldown((prev) => { if (prev <= 1) { clearInterval(timer); return 0; } return prev - 1; });
+                      }, 1000);
+                    } catch (err: any) {
+                      setOtpError(err.message || 'Erro ao enviar codigo');
+                    } finally {
+                      setOtpLoading(false);
+                    }
+                  }}
+                  className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50"
+                >
+                  {otpLoading ? 'Enviando...' : 'Enviar codigo para meu email'}
+                </button>
+                <button onClick={() => setOtpStep('escolha')}
+                  className="w-full mt-3 py-2 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition">
+                  Voltar
+                </button>
+              </>
+            )}
+
+            {/* Step: DIGITAR CODIGO */}
+            {otpStep === 'codigo' && (
+              <>
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100 mb-2">
+                  Digite o codigo
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
+                  Codigo enviado para <strong className="text-gray-800 dark:text-slate-200">{otpEmail}</strong>. Valido por 10 minutos.
+                </p>
+                {otpError && (
+                  <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                    {otpError}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otpCodigo}
+                  onChange={(e) => setOtpCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  className="w-full px-4 py-4 border border-gray-300 rounded-lg text-center text-2xl font-mono tracking-[0.5em] focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 mb-4"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && otpCodigo.length === 6) {
+                      e.preventDefault();
+                      document.getElementById('btn-validar-otp')?.click();
+                    }
+                  }}
+                />
+                <button
+                  id="btn-validar-otp"
+                  disabled={otpLoading || otpCodigo.length !== 6}
+                  onClick={async () => {
+                    setOtpLoading(true);
+                    setOtpError('');
+                    try {
+                      const res = await api<{ success: boolean; cn: string; assinadoEm: string; role: string }>(`/api/v1/arbitragens/${id}/compromisso/assinar-avancada`, {
+                        method: 'POST', token: token!, body: JSON.stringify({ codigo: otpCodigo }),
+                      });
+                      setSignSuccess(`Assinado com sucesso por ${res.cn} em ${formatDate(res.assinadoEm)}`);
+                      setOtpStep('sucesso');
+                      await load();
+                    } catch (err: any) {
+                      setOtpError(err.message || 'Codigo invalido');
+                    } finally {
+                      setOtpLoading(false);
+                    }
+                  }}
+                  className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium disabled:opacity-50"
+                >
+                  {otpLoading ? 'Validando...' : 'Validar e Assinar'}
+                </button>
+                <div className="mt-3 text-center">
+                  {otpCooldown > 0 ? (
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Reenviar codigo em {otpCooldown}s</p>
+                  ) : (
+                    <button
+                      onClick={() => { setOtpStep('cpf'); setOtpError(''); }}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Nao recebeu? Reenviar codigo
+                    </button>
+                  )}
+                </div>
+                <button onClick={() => { setOtpStep('escolha'); setOtpError(''); }}
+                  className="w-full mt-2 py-2 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition">
+                  Cancelar
+                </button>
+              </>
+            )}
+
+            {/* Step: SUCESSO */}
+            {otpStep === 'sucesso' && (
+              <>
+                <div className="text-center py-4">
+                  <div className="text-5xl mb-3">{'\u{2705}'}</div>
+                  <h2 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-2">
+                    Assinado com sucesso!
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                    Assinatura Avancada por Email + CPF
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                    Conforme Lei 14.063/2020
                   </p>
                 </div>
-              </button>
-            </div>
-
-            <button
-              onClick={() => setShowSignModal(false)}
-              className="w-full mt-4 py-2 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition"
-            >
-              Cancelar
-            </button>
+                <button
+                  onClick={() => { setShowSignModal(false); setOtpStep('escolha'); }}
+                  className="w-full py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+                >
+                  Fechar
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
