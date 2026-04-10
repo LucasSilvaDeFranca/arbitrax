@@ -150,25 +150,6 @@ export default function CompromissoPage() {
     }
   };
 
-  const handleAssinarSimples = async () => {
-    if (!token) return;
-    setSigning(true);
-    setSignError('');
-    setSignSuccess('');
-    try {
-      const result = await api<{ success: boolean; cn: string; assinadoEm: string; role: string; metodo: string }>(
-        `/api/v1/arbitragens/${id}/compromisso/assinar-simples`,
-        { method: 'POST', token },
-      );
-      setSignSuccess(`Assinado com sucesso por ${result.cn} em ${formatDate(result.assinadoEm)}`);
-      await load();
-    } catch (err: any) {
-      setSignError(err.message || 'Erro ao assinar');
-    } finally {
-      setSigning(false);
-    }
-  };
-
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   const isRequerente = user && arbitragem && arbitragem.requerenteId === user.id;
   const isRequerido = user && arbitragem && arbitragem.requeridoId === user.id;

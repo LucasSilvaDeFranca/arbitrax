@@ -357,15 +357,6 @@ export class CompromissoService {
     };
   }
 
-  /** Assinatura simples: delega pro executarAssinaturaSimples com tipo 'simples' */
-  async assinarSimples(
-    arbitragemId: string,
-    userId: string,
-    meta: { ip: string; userAgent: string },
-  ) {
-    return this.executarAssinaturaSimples(arbitragemId, userId, meta, 'simples');
-  }
-
   /**
    * Logica compartilhada entre assinatura simples e avancada.
    * tipo: 'simples' (aceite direto) ou 'avancada' (validado por OTP + CPF)

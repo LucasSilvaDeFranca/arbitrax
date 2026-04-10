@@ -58,20 +58,6 @@ export class CompromissoController {
     return this.compromissoService.assinarDigital(arbitragemId, req.user.sub);
   }
 
-  @Post('assinar-simples')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Assinatura eletronica simples (sem certificado, sem OTP)' })
-  assinarSimples(
-    @Param('arbitragemId') arbitragemId: string,
-    @Request() req: any,
-    @Headers('x-forwarded-for') forwardedFor: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    const ip = forwardedFor?.split(',')[0]?.trim() || req.ip || 'desconhecido';
-    return this.compromissoService.assinarSimples(arbitragemId, req.user.sub, { ip, userAgent });
-  }
-
   @Post('enviar-otp')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
