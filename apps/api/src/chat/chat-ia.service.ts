@@ -166,11 +166,12 @@ ${provasResumo || '(nenhuma prova anexada)'}
   async responderPergunta(arbitragemId: string, canal: string, pergunta: string, userId?: string): Promise<string> {
     pergunta = this.sanitizePergunta(pergunta);
 
-    // 1. Load case context
+    // 1. Load case context + IDs das partes (1 query em vez de 2)
     const arb = await this.prisma.arbitragem.findUnique({
       where: { id: arbitragemId },
       select: {
         numero: true, objeto: true, status: true, valorCausa: true, categoria: true,
+        requerenteId: true, requeridoId: true, advRequerenteId: true, advRequeridoId: true,
         requerente: { select: { nome: true } },
         requerido: { select: { nome: true } },
         prazos: { where: { status: 'ATIVO' }, select: { tipo: true, fim: true }, take: 5 },
@@ -180,47 +181,31 @@ ${provasResumo || '(nenhuma prova anexada)'}
 
     if (!arb) return 'Caso nao encontrado.';
 
-    // 1a. Load all provas (direct listing - independent of RAG similarity)
-    const provasList = await this.prisma.prova.findMany({
-      where: { arbitragemId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        tipo: true,
-        descricao: true,
-        arquivoUrl: true,
-        mimeType: true,
-        createdAt: true,
-        textoExtraido: true,
-        parte: { select: { nome: true, role: true } },
-      },
-    });
+    // 1a. Load provas + user info em paralelo
+    const [provasList, userInfo] = await Promise.all([
+      this.prisma.prova.findMany({
+        where: { arbitragemId },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true, tipo: true, descricao: true, arquivoUrl: true, mimeType: true,
+          createdAt: true, textoExtraido: true,
+          parte: { select: { nome: true, role: true } },
+        },
+      }),
+      userId
+        ? this.prisma.user.findUnique({ where: { id: userId }, select: { nome: true, role: true } })
+        : null,
+    ]);
 
-    // 1b. Identify who is asking
-    let userNome = 'Usuario';
-    let userRole = 'DESCONHECIDO';
+    // 1b. Identify who is asking (sem query extra — IDs ja vieram na query 1)
+    let userNome = userInfo?.nome || 'Usuario';
+    let userRole = userInfo?.role || 'DESCONHECIDO';
     let userPapelNoCaso = 'parte';
     if (userId) {
-      const userInfo = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { nome: true, role: true },
-      });
-      if (userInfo) {
-        userNome = userInfo.nome;
-        userRole = userInfo.role;
-      }
-
-      // Determine role within THIS case
-      const arbFull = await this.prisma.arbitragem.findUnique({
-        where: { id: arbitragemId },
-        select: { requerenteId: true, requeridoId: true, advRequerenteId: true, advRequeridoId: true },
-      });
-      if (arbFull) {
-        if (arbFull.requerenteId === userId) userPapelNoCaso = 'requerente (autor)';
-        else if (arbFull.requeridoId === userId) userPapelNoCaso = 'requerido (reu)';
-        else if (arbFull.advRequerenteId === userId) userPapelNoCaso = 'advogado do requerente';
-        else if (arbFull.advRequeridoId === userId) userPapelNoCaso = 'advogado do requerido';
-      }
+      if (arb.requerenteId === userId) userPapelNoCaso = 'requerente (autor)';
+      else if (arb.requeridoId === userId) userPapelNoCaso = 'requerido (reu)';
+      else if (arb.advRequerenteId === userId) userPapelNoCaso = 'advogado do requerente';
+      else if (arb.advRequeridoId === userId) userPapelNoCaso = 'advogado do requerido';
     }
 
     // 2. Load recent chat history (last 10 msgs do canal atual - todas visiveis no grupo)

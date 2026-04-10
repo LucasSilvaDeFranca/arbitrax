@@ -11,11 +11,22 @@ import { PdfService } from '../pdf/pdf.service';
 import { StorageService } from '../storage/storage.service';
 import { CertificadoDigitalService } from '../certificado-digital/certificado-digital.service';
 import { PdfSignerService } from '../certificado-digital/pdf-signer.service';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as crypto from 'crypto';
+import * as nodemailer from 'nodemailer';
+
+/** Contexto validado de assinatura — reutilizado entre metodos */
+interface SigningContext {
+  compromisso: any;
+  arb: any;
+  isRequerente: boolean;
+  isRequerido: boolean;
+}
 
 @Injectable()
 export class CompromissoService {
   private readonly logger = new Logger(CompromissoService.name);
+  private smtpTransporter: nodemailer.Transporter | null = null;
 
   constructor(
     private prisma: PrismaService,
@@ -26,6 +37,60 @@ export class CompromissoService {
     private certificadoService: CertificadoDigitalService,
     private pdfSignerService: PdfSignerService,
   ) {}
+
+  /** Validacao compartilhada: busca compromisso+arb, verifica parte, verifica ja assinou */
+  private async validateSigningContext(arbitragemId: string, userId: string): Promise<SigningContext> {
+    const compromisso = await this.prisma.compromisso.findUnique({ where: { arbitragemId } });
+    if (!compromisso) throw new NotFoundException('Compromisso nao encontrado');
+    if (!compromisso.pdfUrl) throw new BadRequestException('PDF do compromisso ainda nao foi gerado');
+
+    const arb = await this.prisma.arbitragem.findUnique({ where: { id: arbitragemId } });
+    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
+
+    const isRequerente = arb.requerenteId === userId;
+    const isRequerido = arb.requeridoId === userId;
+    if (!isRequerente && !isRequerido) throw new BadRequestException('Voce nao e parte desta arbitragem');
+    if (isRequerente && compromisso.assinReqAt) throw new BadRequestException('Requerente ja assinou');
+    if (isRequerido && compromisso.assinReqdoAt) throw new BadRequestException('Requerido ja assinou');
+
+    return { compromisso, arb, isRequerente, isRequerido };
+  }
+
+  /** Finaliza se ambos assinaram: muda status + emite evento */
+  private async finalizarSeAmbosAssinaram(compromissoId: string, updated: any, arbitragemId: string, arb: any) {
+    if (updated.assinReqAt && updated.assinReqdoAt) {
+      await this.prisma.compromisso.update({
+        where: { id: compromissoId },
+        data: { status: 'assinado' },
+      });
+      await this.prisma.arbitragem.update({
+        where: { id: arbitragemId },
+        data: { status: 'EM_INSTRUCAO' },
+      });
+      this.events.emitCompromissoAssinado({
+        arbitragemId,
+        numero: arb.numero,
+        requerenteId: arb.requerenteId,
+        requeridoId: arb.requeridoId || '',
+      });
+    }
+  }
+
+  /** SMTP transporter lazy-init (reutiliza conexao entre envios) */
+  private getSmtpTransporter(): nodemailer.Transporter {
+    if (!this.smtpTransporter) {
+      this.smtpTransporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+        port: Number(process.env.SMTP_PORT || '587'),
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER || '',
+          pass: process.env.SMTP_PASS || '',
+        },
+      });
+    }
+    return this.smtpTransporter;
+  }
 
   /** Gerar compromisso arbitral, PDF e enviar para assinatura.
    *  Se allowReplace=true, regenera sobrescrevendo compromisso existente que ainda nao foi assinado. */
@@ -209,61 +274,13 @@ export class CompromissoService {
 
   /** Assinatura digital com certificado A1 */
   async assinarDigital(arbitragemId: string, userId: string) {
-    // 1. Find compromisso
-    const compromisso = await this.prisma.compromisso.findUnique({
-      where: { arbitragemId },
-    });
-    if (!compromisso) {
-      throw new NotFoundException('Compromisso nao encontrado');
-    }
+    const { compromisso, arb, isRequerente, isRequerido } =
+      await this.validateSigningContext(arbitragemId, userId);
 
-    // 2. Check PDF exists
-    if (!compromisso.pdfUrl) {
-      throw new BadRequestException('PDF do compromisso ainda nao foi gerado');
-    }
-
-    // 3. Find arbitragem to check user role
-    const arb = await this.prisma.arbitragem.findUnique({
-      where: { id: arbitragemId },
-    });
-    if (!arb) {
-      throw new NotFoundException('Arbitragem nao encontrada');
-    }
-
-    const isRequerente = arb.requerenteId === userId;
-    const isRequerido = arb.requeridoId === userId;
-
-    if (!isRequerente && !isRequerido) {
-      throw new BadRequestException('Voce nao e parte desta arbitragem');
-    }
-
-    // 4. Check if user already signed
-    if (isRequerente && compromisso.assinReqAt) {
-      throw new BadRequestException('Requerente ja assinou este compromisso');
-    }
-    if (isRequerido && compromisso.assinReqdoAt) {
-      throw new BadRequestException('Requerido ja assinou este compromisso');
-    }
-
-    // 5. Get user's A1 certificate
     const { pfxBuffer, senha, cn } =
       await this.certificadoService.getCertificadoParaAssinatura(userId);
 
-    // 6. Read current PDF from storage (funciona com supabase, s3 ou local)
-    let currentPdfBuffer: Buffer;
-    try {
-      currentPdfBuffer = await this.storage.getBuffer(compromisso.pdfUrl);
-      this.logger.log(
-        `[sign compromisso] arb=${arb.numero} currentPdfBuffer=${currentPdfBuffer.length} bytes (lido de ${compromisso.pdfUrl})`,
-      );
-    } catch (err: any) {
-      this.logger.error(`Erro ao baixar PDF do compromisso ${compromisso.id}: ${err.message}`);
-      throw new BadRequestException(
-        'Arquivo PDF nao acessivel no storage. O compromisso pode precisar ser regerado.',
-      );
-    }
-
-    // 7. Sign the PDF with user's certificate
+    const currentPdfBuffer = await this.readPdf(compromisso);
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { nome: true },
@@ -271,117 +288,49 @@ export class CompromissoService {
     const signerName = user?.nome || cn || 'Usuario';
 
     const { signedPdfBuffer, hash } = await this.pdfSignerService.assinarPdf(
-      userId,
-      currentPdfBuffer,
-      {
-        arbitragemNumero: arb.numero,
-        tipo: 'Compromisso Arbitral',
-        signerName,
-      },
+      userId, currentPdfBuffer,
+      { arbitragemNumero: arb.numero, tipo: 'Compromisso Arbitral', signerName },
     );
 
-    this.logger.log(
-      `[sign compromisso] arb=${arb.numero} signedPdfBuffer=${signedPdfBuffer.length} bytes, hash=${hash.slice(0, 16)}...`,
-    );
-
-    // 8. Re-upload signed PDF (overwrite same key)
     const storageKey = `arbitragens/${arbitragemId}/compromisso/compromisso-${arb.numero}.pdf`;
     const uploaded = await this.storage.upload(signedPdfBuffer, storageKey, 'application/pdf');
-    this.logger.log(
-      `[sign compromisso] arb=${arb.numero} upload OK key=${storageKey} url=${uploaded.url}`,
-    );
 
-    // 9. Update compromisso fields
-    const updateData: any = {
-      pdfUrl: uploaded.url,
-      hashSha256: hash,
-    };
+    const updateData: Record<string, any> = { pdfUrl: uploaded.url, hashSha256: hash };
+    if (isRequerente) { updateData.assinReqAt = new Date(); updateData.assinaturaReqCn = cn; }
+    if (isRequerido) { updateData.assinReqdoAt = new Date(); updateData.assinaturaReqdoCn = cn; }
 
-    if (isRequerente) {
-      updateData.assinReqAt = new Date();
-      updateData.assinaturaReqCn = cn;
-    }
-    if (isRequerido) {
-      updateData.assinReqdoAt = new Date();
-      updateData.assinaturaReqdoCn = cn;
-    }
+    const updated = await this.prisma.compromisso.update({ where: { id: compromisso.id }, data: updateData });
+    await this.finalizarSeAmbosAssinaram(compromisso.id, updated, arbitragemId, arb);
 
-    const updated = await this.prisma.compromisso.update({
-      where: { id: compromisso.id },
-      data: updateData,
-    });
-
-    // 10. If BOTH signed: update status
-    if (updated.assinReqAt && updated.assinReqdoAt) {
-      await this.prisma.compromisso.update({
-        where: { id: compromisso.id },
-        data: { status: 'assinado' },
-      });
-
-      await this.prisma.arbitragem.update({
-        where: { id: arbitragemId },
-        data: { status: 'EM_INSTRUCAO' },
-      });
-
-      // Emitir evento de compromisso assinado
-      this.events.emitCompromissoAssinado({
-        arbitragemId,
-        numero: arb.numero,
-        requerenteId: arb.requerenteId,
-        requeridoId: arb.requeridoId || '',
-      });
-    }
-
-    // 11. Audit log
     await this.prisma.auditLog.create({
       data: {
-        userId,
-        acao: 'COMPROMISSO_ASSINADO_DIGITALMENTE',
-        entidade: 'compromisso',
+        userId, acao: 'COMPROMISSO_ASSINADO_DIGITALMENTE', entidade: 'compromisso',
         entidadeId: compromisso.id,
-        dadosDepois: {
-          cn,
-          hash,
-          role: isRequerente ? 'requerente' : 'requerido',
-          pdfUrl: uploaded.url,
-        },
+        dadosDepois: { cn, hash, role: isRequerente ? 'requerente' : 'requerido', pdfUrl: uploaded.url },
       },
     });
 
-    // 12. Return
-    return {
-      success: true,
-      cn,
-      assinadoEm: new Date().toISOString(),
-      role: isRequerente ? 'requerente' : 'requerido',
-    };
+    return { success: true, cn, assinadoEm: new Date().toISOString(), role: isRequerente ? 'requerente' : 'requerido' };
   }
 
-  /**
-   * Logica compartilhada entre assinatura simples e avancada.
-   * tipo: 'simples' (aceite direto) ou 'avancada' (validado por OTP + CPF)
-   */
-  private async executarAssinaturaSimples(
+  /** Leitura do PDF do storage com tratamento de erro padrao */
+  private async readPdf(compromisso: any): Promise<Buffer> {
+    try {
+      return await this.storage.getBuffer(compromisso.pdfUrl);
+    } catch (err: any) {
+      throw new BadRequestException('Arquivo PDF nao acessivel. O compromisso pode precisar ser regerado.');
+    }
+  }
+
+  /** Logica compartilhada: assinatura avancada (OTP validado) */
+  private async executarAssinaturaAvancada(
     arbitragemId: string,
     userId: string,
     meta: { ip: string; userAgent: string },
-    tipo: 'simples' | 'avancada' = 'simples',
   ) {
-    // 1-4: mesmas validacoes do assinarDigital
-    const compromisso = await this.prisma.compromisso.findUnique({ where: { arbitragemId } });
-    if (!compromisso) throw new NotFoundException('Compromisso nao encontrado');
-    if (!compromisso.pdfUrl) throw new BadRequestException('PDF do compromisso ainda nao foi gerado');
+    const { compromisso, arb, isRequerente, isRequerido } =
+      await this.validateSigningContext(arbitragemId, userId);
 
-    const arb = await this.prisma.arbitragem.findUnique({ where: { id: arbitragemId } });
-    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
-
-    const isRequerente = arb.requerenteId === userId;
-    const isRequerido = arb.requeridoId === userId;
-    if (!isRequerente && !isRequerido) throw new BadRequestException('Voce nao e parte desta arbitragem');
-    if (isRequerente && compromisso.assinReqAt) throw new BadRequestException('Requerente ja assinou');
-    if (isRequerido && compromisso.assinReqdoAt) throw new BadRequestException('Requerido ja assinou');
-
-    // 5. Buscar dados do user pra pagina visual
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { nome: true, cpfCnpj: true, email: true },
@@ -389,36 +338,25 @@ export class CompromissoService {
     const signerName = user?.nome || 'Usuario';
     const signerLabel = `${signerName} (CPF/CNPJ: ${user?.cpfCnpj || 'N/I'})`;
 
-    // 6. Ler PDF atual do storage
-    let currentPdfBuffer: Buffer;
-    try {
-      currentPdfBuffer = await this.storage.getBuffer(compromisso.pdfUrl);
-    } catch (err: any) {
-      throw new BadRequestException('Arquivo PDF nao acessivel. O compromisso pode precisar ser regerado.');
-    }
+    const currentPdfBuffer = await this.readPdf(compromisso);
+    const docHash = crypto.createHash('sha256').update(currentPdfBuffer).digest('hex');
+    const dataAssinatura = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
-    // 7. Adicionar pagina visual de assinatura (sem PKCS7)
-    const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+    // Pagina visual de assinatura via pdf-lib (imports estaticos no topo)
     const pdfDoc = await PDFDocument.load(currentPdfBuffer);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
     const pageWidth = 595.28;
     const pageHeight = 841.89;
     const margin = 60;
     const page = pdfDoc.addPage([pageWidth, pageHeight]);
-
     let y = pageHeight - margin;
-    const docHash = (await import('crypto')).createHash('sha256').update(currentPdfBuffer).digest('hex');
-    const dataAssinatura = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
-    // Titulo
     page.drawText('DOCUMENTO ASSINADO ELETRONICAMENTE', {
       x: margin, y, size: 16, font: fontBold, color: rgb(0.0, 0.3, 0.15),
     });
     y -= 30;
 
-    // Box de informacoes
     page.drawRectangle({
       x: margin - 5, y: y - 220, width: pageWidth - margin * 2 + 10, height: 250,
       borderColor: rgb(0.0, 0.4, 0.2), borderWidth: 2, color: rgb(0.95, 0.99, 0.95),
@@ -436,198 +374,99 @@ export class CompromissoService {
     drawInfo('Assinado por:', signerName);
     drawInfo('CPF/CNPJ:', user?.cpfCnpj || 'N/I');
     drawInfo('Email:', user?.email || 'N/I');
-    drawInfo('Metodo:', tipo === 'avancada' ? 'Assinatura Avancada (Email + CPF)' : 'Assinatura Eletronica Simples');
+    drawInfo('Metodo:', 'Assinatura Avancada (Email + CPF)');
     drawInfo('IP:', meta.ip);
     drawInfo('Data/Hora:', dataAssinatura);
     drawInfo('Hash SHA-256:', docHash.substring(0, 40) + '...');
-
     y -= 30;
 
-    page.drawText('VALIDADE JURIDICA', {
-      x: margin, y, size: 12, font: fontBold, color: rgb(0.1, 0.2, 0.5),
-    });
+    page.drawText('VALIDADE JURIDICA', { x: margin, y, size: 12, font: fontBold, color: rgb(0.1, 0.2, 0.5) });
     y -= 20;
-
-    const avisoLines = [
-      'Este documento foi assinado eletronicamente de forma simples,',
-      'conforme a Lei 14.063/2020, Art. 4 (assinatura eletronica simples).',
+    for (const line of [
+      'Este documento foi assinado eletronicamente com validacao de',
+      'identidade (CPF/CNPJ) e codigo OTP por email, conforme a',
+      'Lei 14.063/2020, Art. 4, §2 (assinatura eletronica avancada).',
       '',
       'Evidencias registradas pela plataforma ArbitraX:',
-      '  - Identidade do signatario (CPF/CNPJ + email vinculado a conta)',
+      '  - CPF/CNPJ confirmado pelo signatario',
+      '  - Codigo OTP validado via email cadastrado',
       '  - Endereco IP e User-Agent do dispositivo',
-      '  - Hash SHA-256 do documento no momento da assinatura',
-      '  - Data/hora registrada pelo servidor',
+      '  - Hash SHA-256 do documento',
       '',
       'ArbitraX - Plataforma de Arbitragem Digital',
-    ];
-    for (const line of avisoLines) {
+    ]) {
       page.drawText(line, { x: margin, y, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
       y -= 14;
     }
 
     const signedPdfBytes = await pdfDoc.save({ useObjectStreams: false });
     const signedPdfBuffer = Buffer.from(signedPdfBytes);
-    const hash = (await import('crypto')).createHash('sha256').update(signedPdfBuffer).digest('hex');
+    const hash = crypto.createHash('sha256').update(signedPdfBuffer).digest('hex');
 
-    // 8. Upload PDF assinado
     const storageKey = `arbitragens/${arbitragemId}/compromisso/compromisso-${arb.numero}.pdf`;
-
-    this.logger.log(`[assinar-simples] ${arb.numero}: ${signerName} assinando, PDF=${signedPdfBuffer.length} bytes`);
-
     const uploaded = await this.storage.upload(signedPdfBuffer, storageKey, 'application/pdf');
 
-    // 9. Atualizar compromisso
-    const updateData: any = {
-      pdfUrl: uploaded.url,
-      hashSha256: hash,
-    };
+    const cnLabel = `Assinatura Avancada (Email) - ${signerLabel}`;
+    const updateData: Record<string, any> = { pdfUrl: uploaded.url, hashSha256: hash };
+    if (isRequerente) { updateData.assinReqAt = new Date(); updateData.assinaturaReqCn = cnLabel; }
+    if (isRequerido) { updateData.assinReqdoAt = new Date(); updateData.assinaturaReqdoCn = cnLabel; }
 
-    const cnSimples = tipo === 'avancada'
-      ? `Assinatura Avancada (Email) - ${signerLabel}`
-      : `Assinatura Simples - ${signerLabel}`;
+    const updated = await this.prisma.compromisso.update({ where: { id: compromisso.id }, data: updateData });
+    await this.finalizarSeAmbosAssinaram(compromisso.id, updated, arbitragemId, arb);
 
-    if (isRequerente) {
-      updateData.assinReqAt = new Date();
-      updateData.assinaturaReqCn = cnSimples;
-    }
-    if (isRequerido) {
-      updateData.assinReqdoAt = new Date();
-      updateData.assinaturaReqdoCn = cnSimples;
-    }
-
-    const updated = await this.prisma.compromisso.update({
-      where: { id: compromisso.id },
-      data: updateData,
-    });
-
-    // 10. Se ambos assinaram
-    if (updated.assinReqAt && updated.assinReqdoAt) {
-      await this.prisma.compromisso.update({
-        where: { id: compromisso.id },
-        data: { status: 'assinado' },
-      });
-
-      await this.prisma.arbitragem.update({
-        where: { id: arbitragemId },
-        data: { status: 'EM_INSTRUCAO' },
-      });
-
-      this.events.emitCompromissoAssinado({
-        arbitragemId,
-        numero: arb.numero,
-        requerenteId: arb.requerenteId,
-        requeridoId: arb.requeridoId || '',
-      });
-    }
-
-    // 11. Audit log com evidencias completas
     await this.prisma.auditLog.create({
       data: {
-        userId,
-        acao: tipo === 'avancada' ? 'COMPROMISSO_ASSINADO_AVANCADA' : 'COMPROMISSO_ASSINADO_SIMPLES',
-        entidade: 'compromisso',
+        userId, acao: 'COMPROMISSO_ASSINADO_AVANCADA', entidade: 'compromisso',
         entidadeId: compromisso.id,
         dadosDepois: {
-          metodo: tipo === 'avancada' ? 'email_otp' : 'assinatura_simples',
-          signerName,
-          cpfCnpj: user?.cpfCnpj,
-          email: user?.email,
-          ip: meta.ip,
-          userAgent: meta.userAgent,
-          hash,
-          role: isRequerente ? 'requerente' : 'requerido',
-          pdfUrl: uploaded.url,
+          metodo: 'email_otp', signerName, cpfCnpj: user?.cpfCnpj, email: user?.email,
+          ip: meta.ip, userAgent: meta.userAgent, hash,
+          role: isRequerente ? 'requerente' : 'requerido', pdfUrl: uploaded.url,
         },
       },
     });
 
-    this.logger.log(`[assinar-simples] ${arb.numero}: assinado por ${signerName} (${meta.ip})`);
-
+    this.logger.log(`[assinar-avancada] ${arb.numero}: assinado por ${signerName} (${meta.ip})`);
     return {
-      success: true,
-      cn: cnSimples,
-      assinadoEm: new Date().toISOString(),
-      role: isRequerente ? 'requerente' : 'requerido',
-      metodo: 'simples',
+      success: true, cn: cnLabel, assinadoEm: new Date().toISOString(),
+      role: isRequerente ? 'requerente' : 'requerido', metodo: 'avancada',
     };
   }
 
-  /**
-   * Envia OTP por email para assinatura avancada.
-   * Valida CPF/CNPJ antes de enviar (prova de identidade).
-   */
+  /** Envia OTP por email para assinatura avancada. Valida CPF antes de enviar. */
   async enviarOtpAssinatura(arbitragemId: string, userId: string, cpfDigitado: string) {
-    // Validacoes basicas
-    const compromisso = await this.prisma.compromisso.findUnique({ where: { arbitragemId } });
-    if (!compromisso) throw new NotFoundException('Compromisso nao encontrado');
-    if (!compromisso.pdfUrl) throw new BadRequestException('PDF ainda nao foi gerado');
+    const { compromisso, arb } = await this.validateSigningContext(arbitragemId, userId);
 
-    const arb = await this.prisma.arbitragem.findUnique({ where: { id: arbitragemId } });
-    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
-
-    const isRequerente = arb.requerenteId === userId;
-    const isRequerido = arb.requeridoId === userId;
-    if (!isRequerente && !isRequerido) throw new BadRequestException('Voce nao e parte desta arbitragem');
-    if (isRequerente && compromisso.assinReqAt) throw new BadRequestException('Requerente ja assinou');
-    if (isRequerido && compromisso.assinReqdoAt) throw new BadRequestException('Requerido ja assinou');
-
-    // Buscar user e validar CPF
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { nome: true, cpfCnpj: true, email: true },
     });
     if (!user) throw new BadRequestException('Usuario nao encontrado');
 
-    // Strip formatacao pra comparar: remove pontos, hifens, barras
     const cpfLimpo = cpfDigitado.replace(/\D/g, '');
     const cpfDb = (user.cpfCnpj || '').replace(/\D/g, '');
     if (!cpfLimpo || cpfLimpo !== cpfDb) {
       throw new BadRequestException('CPF/CNPJ nao confere com seu cadastro');
     }
 
-    // Gerar codigo OTP de 6 digitos
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Salvar no compromisso
     await this.prisma.compromisso.update({
       where: { id: compromisso.id },
-      data: {
-        otpCode: codigo,
-        otpUserId: userId,
-        otpExpiresAt: expiresAt,
-      },
+      data: { otpCode: codigo, otpUserId: userId, otpExpiresAt: expiresAt },
     });
 
-    // Enviar email com codigo OTP
     await this.enviarEmailOtp(user.email, user.nome, codigo, arb.numero);
 
-    this.logger.log(`[enviar-otp] ${arb.numero}: codigo enviado para ${user.email.replace(/(.{2}).+(@)/, '$1***$2')}`);
-
-    // Retornar email mascarado
     const emailMascarado = user.email.replace(/(.{2}).+(@)/, '$1***$2');
-    return {
-      enviado: true,
-      email: emailMascarado,
-      expiraEm: '10 minutos',
-    };
+    this.logger.log(`[enviar-otp] ${arb.numero}: codigo enviado para ${emailMascarado}`);
+
+    return { enviado: true, email: emailMascarado, expiraEm: '10 minutos' };
   }
 
   private async enviarEmailOtp(email: string, nome: string, codigo: string, casoNumero: string) {
-    // Acessa o EmailService que esta injetado via compromisso.module (nao diretamente)
-    // Como o CompromissoService nao tem EmailService injetado, preciso acessar via PrismaModule
-    // Solucao pragmatica: usar nodemailer direto com as mesmas configs
-    const nodemailer = await import('nodemailer');
-    const transporter = nodemailer.default.createTransport({
-      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-      port: Number(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || '',
-      },
-    });
-
+    const transporter = this.getSmtpTransporter();
     const fromEmail = process.env.SMTP_FROM || 'contato@arbitrax.com.br';
 
     await transporter.sendMail({
@@ -639,23 +478,17 @@ export class CompromissoService {
           <h2 style="color:#1e3a5f;">Codigo de Assinatura Digital</h2>
           <p>Prezado(a) <strong>${nome}</strong>,</p>
           <p>Voce solicitou assinar o Termo de Compromisso Arbitral do caso <strong>${casoNumero}</strong>.</p>
-          <p>Seu codigo de verificacao:</p>
           <div style="background:#f0fdf4;border:2px solid #22c55e;border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
             <p style="margin:0;font-size:36px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:8px;color:#166534;">${codigo}</p>
           </div>
-          <p style="color:#666;font-size:13px;">Este codigo e valido por <strong>10 minutos</strong>.</p>
+          <p style="color:#666;font-size:13px;">Valido por <strong>10 minutos</strong>.</p>
           <p style="color:#999;font-size:12px;">Se voce nao solicitou, ignore este email.</p>
-          <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
-          <p style="color:#aaa;font-size:11px;">ArbitraX - Plataforma de Arbitragem Digital</p>
         </div>
       `,
     });
   }
 
-  /**
-   * Assinatura avancada: valida OTP + assina.
-   * Chamada depois do enviarOtpAssinatura ter sido feito com sucesso.
-   */
+  /** Assinatura avancada: valida OTP + assina */
   async assinarAvancada(
     arbitragemId: string,
     userId: string,
@@ -665,7 +498,6 @@ export class CompromissoService {
     const compromisso = await this.prisma.compromisso.findUnique({ where: { arbitragemId } });
     if (!compromisso) throw new NotFoundException('Compromisso nao encontrado');
 
-    // Validar OTP
     if (!compromisso.otpCode || !compromisso.otpUserId || !compromisso.otpExpiresAt) {
       throw new BadRequestException('Nenhum codigo OTP foi solicitado. Envie o codigo primeiro.');
     }
@@ -679,15 +511,12 @@ export class CompromissoService {
       throw new BadRequestException('Codigo invalido. Verifique e tente novamente.');
     }
 
-    // Limpar OTP antes de assinar (evita reuso)
     await this.prisma.compromisso.update({
       where: { id: compromisso.id },
       data: { otpCode: null, otpUserId: null, otpExpiresAt: null },
     });
 
-    // Reusar a logica do assinarSimples, mas com metodo 'avancada' e label diferente
-    // Vou chamar diretamente passando o metodo
-    return this.executarAssinaturaSimples(arbitragemId, userId, meta, 'avancada');
+    return this.executarAssinaturaAvancada(arbitragemId, userId, meta);
   }
 
   /** Webhook ZapSign */

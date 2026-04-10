@@ -309,31 +309,26 @@ export class EventsListener {
             .catch(() => {});
         }
 
-        // 6. Notifica arbitros designados
-        for (const a of arbitros) {
-          await this.prisma.notificacao.create({
-            data: {
-              userId: a.arbitroId,
-              titulo: 'Caso pronto para analise',
-              mensagem: `O caso ${event.numero} recebeu a contestacao. O chat de sentenca foi aberto com um resumo inicial da IA.`,
-              tipo: 'sistema',
-              link: `/arbitragens/${event.arbitragemId}`,
-            },
-          });
-        }
-
-        // 7. Notifica as partes que o caso esta em analise
+        // 6+7. Notifica arbitros + partes em batch (1 write em vez de N+2)
         const partesIds = [event.requerenteId, event.requeridoId].filter(Boolean) as string[];
-        for (const parteId of partesIds) {
-          await this.prisma.notificacao.create({
-            data: {
-              userId: parteId,
-              titulo: 'Caso em analise',
-              mensagem: `O caso ${event.numero} agora esta em analise pelo arbitro. Aguarde a sentenca.`,
-              tipo: 'sistema',
-              link: `/arbitragens/${event.arbitragemId}`,
-            },
-          });
+        const notificacoes = [
+          ...arbitros.map((a) => ({
+            userId: a.arbitroId,
+            titulo: 'Caso pronto para analise',
+            mensagem: `O caso ${event.numero} recebeu a contestacao. O chat de sentenca foi aberto com um resumo inicial da IA.`,
+            tipo: 'sistema' as const,
+            link: `/arbitragens/${event.arbitragemId}`,
+          })),
+          ...partesIds.map((parteId) => ({
+            userId: parteId,
+            titulo: 'Caso em analise',
+            mensagem: `O caso ${event.numero} agora esta em analise pelo arbitro. Aguarde a sentenca.`,
+            tipo: 'sistema' as const,
+            link: `/arbitragens/${event.arbitragemId}`,
+          })),
+        ];
+        if (notificacoes.length) {
+          await this.prisma.notificacao.createMany({ data: notificacoes });
         }
 
         this.logger.log(

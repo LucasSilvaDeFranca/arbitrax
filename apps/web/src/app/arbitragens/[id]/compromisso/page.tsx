@@ -103,6 +103,13 @@ export default function CompromissoPage() {
 
   useEffect(() => { load(); }, [id]);
 
+  // OTP cooldown timer gerenciado por useEffect (cleanup automatico no unmount)
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setTimeout(() => setOtpCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [otpCooldown]);
+
   const handleDownloadPdf = async () => {
     if (!token) return;
     try {
@@ -441,11 +448,7 @@ export default function CompromissoPage() {
                       setOtpEmail(res.email);
                       setOtpStep('codigo');
                       setOtpCodigo('');
-                      setOtpCooldown(60);
-                      // Timer de cooldown pra reenvio
-                      const timer = setInterval(() => {
-                        setOtpCooldown((prev) => { if (prev <= 1) { clearInterval(timer); return 0; } return prev - 1; });
-                      }, 1000);
+                      setOtpCooldown(60); // useEffect gerencia o countdown
                     } catch (err: any) {
                       setOtpError(err.message || 'Erro ao enviar codigo');
                     } finally {

@@ -93,12 +93,16 @@ export default function ChatPage() {
           ? { ...m, _status: 'sent' as const }
           : m,
       );
-      // Preserva mensagens otimistas em 'sending'/'error' que ainda nao foram confirmadas
       setMessages((prev) => {
         const pendentes = prev.filter(
           (m) => m.id.startsWith('temp-') && (m._status === 'sending' || m._status === 'error'),
         );
-        return [...msgsComStatus, ...pendentes];
+        const next = [...msgsComStatus, ...pendentes];
+        // Change detection: so atualiza se mudou (evita re-render desnecessario no polling)
+        const prevIds = prev.filter((m) => !m.id.startsWith('temp-')).map((m) => m.id).join(',');
+        const nextIds = msgsComStatus.map((m) => m.id).join(',');
+        if (prevIds === nextIds && pendentes.length === 0) return prev;
+        return next;
       });
     } catch (err: any) {
       if (err.message?.includes('privado') || err.message?.includes('arbitros')) {
