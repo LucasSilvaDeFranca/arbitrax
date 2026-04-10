@@ -301,22 +301,22 @@ export class SentencaService {
       },
     });
 
+    // Ratificar = publicar. Caso encerra direto.
     await this.prisma.arbitragem.update({
       where: { id: arbitragemId },
-      data: { status: 'SENTENCA_RATIFICADA' },
+      data: { status: 'ENCERRADA' },
     });
 
     await this.prisma.auditLog.create({
       data: {
         userId,
-        acao: 'SENTENCA_RATIFICADA',
+        acao: 'SENTENCA_RATIFICADA_E_PUBLICADA',
         entidade: 'sentenca',
         entidadeId: sentenca.id,
         dadosDepois: { codigoVerif },
       },
     });
 
-    // Emitir evento de sentenca ratificada
     const arb = await this.getArbitragem(arbitragemId);
     this.events.emitSentencaRatificada({
       arbitragemId,
@@ -327,7 +327,7 @@ export class SentencaService {
       codigoVerif,
     });
 
-    return { message: 'Sentenca ratificada', codigoVerif, versao: sentenca.versao };
+    return { message: 'Sentenca ratificada e publicada. Caso encerrado.', codigoVerif, versao: sentenca.versao };
   }
 
   /** Analisar provas via IA */
