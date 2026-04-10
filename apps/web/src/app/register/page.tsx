@@ -131,7 +131,7 @@ export default function RegisterPage() {
                     className="sr-only"
                   />
                   <div className="text-2xl mb-1">{'\u{1F464}'}</div>
-                  <div className="text-sm font-medium text-gray-800 dark:text-slate-100">Pessoa / Empresa</div>
+                  <div className="text-sm font-medium text-gray-800 dark:text-slate-100">Pessoa Fisica / Empresa</div>
                   <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Quero abrir casos ou responder convites</div>
                 </label>
                 <label
