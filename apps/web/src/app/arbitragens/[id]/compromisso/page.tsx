@@ -142,6 +142,25 @@ export default function CompromissoPage() {
     }
   };
 
+  const handleAssinarSimples = async () => {
+    if (!token) return;
+    setSigning(true);
+    setSignError('');
+    setSignSuccess('');
+    try {
+      const result = await api<{ success: boolean; cn: string; assinadoEm: string; role: string; metodo: string }>(
+        `/api/v1/arbitragens/${id}/compromisso/assinar-simples`,
+        { method: 'POST', token },
+      );
+      setSignSuccess(`Assinado com sucesso por ${result.cn} em ${formatDate(result.assinadoEm)}`);
+      await load();
+    } catch (err: any) {
+      setSignError(err.message || 'Erro ao assinar');
+    } finally {
+      setSigning(false);
+    }
+  };
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   const isRequerente = user && arbitragem && arbitragem.requerenteId === user.id;
   const isRequerido = user && arbitragem && arbitragem.requeridoId === user.id;
@@ -377,21 +396,23 @@ export default function CompromissoPage() {
                 </div>
               )}
 
-              {/* Opcao 2: Assinatura por email (em breve) */}
-              <div className="w-full p-4 border-2 border-gray-200 dark:border-slate-700 rounded-xl opacity-50 cursor-not-allowed">
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl mt-0.5">{'\u{1F4E7}'}</div>
-                  <div>
-                    <p className="font-semibold text-gray-800 dark:text-slate-100">Assinatura por Email</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                      Validacao por codigo enviado ao seu email
-                    </p>
-                    <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full mt-1 inline-block">
-                      Em breve
-                    </span>
-                  </div>
+              {/* Opcao 2: Assinatura eletronica simples (sem certificado) */}
+              <button
+                onClick={() => {
+                  setShowSignModal(false);
+                  handleAssinarSimples();
+                }}
+                className="w-full p-4 border-2 border-blue-500 dark:border-blue-600 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition text-left flex items-start gap-3"
+              >
+                <div className="text-2xl mt-0.5">{'\u{1F4E7}'}</div>
+                <div>
+                  <p className="font-semibold text-gray-800 dark:text-slate-100">Assinatura Eletronica Simples</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                    Registra seu aceite com nome, CPF, email, IP e hash do documento.
+                    Valida conforme Lei 14.063/2020.
+                  </p>
                 </div>
-              </div>
+              </button>
             </div>
 
             <button

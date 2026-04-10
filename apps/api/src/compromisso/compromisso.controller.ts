@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Body,
+  Headers,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -55,6 +56,23 @@ export class CompromissoController {
     @Request() req: any,
   ) {
     return this.compromissoService.assinarDigital(arbitragemId, req.user.sub);
+  }
+
+  @Post('assinar-simples')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Assinatura eletronica simples (sem certificado A1) - registra aceite + IP + hash',
+    description: 'Para usuarios sem certificado digital. Registra evidencias: nome, CPF, email, IP, user-agent, hash do documento, timestamp. Adiciona pagina visual ao PDF. Valida como assinatura eletronica simples (Lei 14.063/2020 Art. 4).',
+  })
+  assinarSimples(
+    @Param('arbitragemId') arbitragemId: string,
+    @Request() req: any,
+    @Headers('x-forwarded-for') forwardedFor: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    const ip = forwardedFor?.split(',')[0]?.trim() || req.ip || 'desconhecido';
+    return this.compromissoService.assinarSimples(arbitragemId, req.user.sub, { ip, userAgent });
   }
 }
 

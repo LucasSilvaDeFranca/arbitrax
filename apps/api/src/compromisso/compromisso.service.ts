@@ -357,6 +357,201 @@ export class CompromissoService {
     };
   }
 
+  /**
+   * Assinatura eletronica simples: sem certificado A1.
+   * Registra aceite com evidencias (nome, CPF, email, IP, user-agent, hash do doc, timestamp).
+   * Adiciona pagina visual ao PDF (sem PKCS7 criptografico).
+   * Valida como assinatura eletronica simples conforme Lei 14.063/2020 Art. 4.
+   */
+  async assinarSimples(
+    arbitragemId: string,
+    userId: string,
+    meta: { ip: string; userAgent: string },
+  ) {
+    // 1-4: mesmas validacoes do assinarDigital
+    const compromisso = await this.prisma.compromisso.findUnique({ where: { arbitragemId } });
+    if (!compromisso) throw new NotFoundException('Compromisso nao encontrado');
+    if (!compromisso.pdfUrl) throw new BadRequestException('PDF do compromisso ainda nao foi gerado');
+
+    const arb = await this.prisma.arbitragem.findUnique({ where: { id: arbitragemId } });
+    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
+
+    const isRequerente = arb.requerenteId === userId;
+    const isRequerido = arb.requeridoId === userId;
+    if (!isRequerente && !isRequerido) throw new BadRequestException('Voce nao e parte desta arbitragem');
+    if (isRequerente && compromisso.assinReqAt) throw new BadRequestException('Requerente ja assinou');
+    if (isRequerido && compromisso.assinReqdoAt) throw new BadRequestException('Requerido ja assinou');
+
+    // 5. Buscar dados do user pra pagina visual
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { nome: true, cpfCnpj: true, email: true },
+    });
+    const signerName = user?.nome || 'Usuario';
+    const signerLabel = `${signerName} (CPF/CNPJ: ${user?.cpfCnpj || 'N/I'})`;
+
+    // 6. Ler PDF atual do storage
+    let currentPdfBuffer: Buffer;
+    try {
+      currentPdfBuffer = await this.storage.getBuffer(compromisso.pdfUrl);
+    } catch (err: any) {
+      throw new BadRequestException('Arquivo PDF nao acessivel. O compromisso pode precisar ser regerado.');
+    }
+
+    // 7. Adicionar pagina visual de assinatura (sem PKCS7)
+    const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+    const pdfDoc = await PDFDocument.load(currentPdfBuffer);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const pageWidth = 595.28;
+    const pageHeight = 841.89;
+    const margin = 60;
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+    let y = pageHeight - margin;
+    const docHash = (await import('crypto')).createHash('sha256').update(currentPdfBuffer).digest('hex');
+    const dataAssinatura = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+    // Titulo
+    page.drawText('DOCUMENTO ASSINADO ELETRONICAMENTE', {
+      x: margin, y, size: 16, font: fontBold, color: rgb(0.0, 0.3, 0.15),
+    });
+    y -= 30;
+
+    // Box de informacoes
+    page.drawRectangle({
+      x: margin - 5, y: y - 220, width: pageWidth - margin * 2 + 10, height: 250,
+      borderColor: rgb(0.0, 0.4, 0.2), borderWidth: 2, color: rgb(0.95, 0.99, 0.95),
+    });
+    y -= 10;
+
+    const drawInfo = (label: string, value: string) => {
+      page.drawText(label, { x: margin + 10, y, size: 10, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+      page.drawText(value, { x: margin + 160, y, size: 10, font, color: rgb(0.1, 0.1, 0.1) });
+      y -= 18;
+    };
+
+    drawInfo('Tipo:', 'Compromisso Arbitral');
+    drawInfo('Processo:', arb.numero);
+    drawInfo('Assinado por:', signerName);
+    drawInfo('CPF/CNPJ:', user?.cpfCnpj || 'N/I');
+    drawInfo('Email:', user?.email || 'N/I');
+    drawInfo('Metodo:', 'Assinatura Eletronica Simples');
+    drawInfo('IP:', meta.ip);
+    drawInfo('Data/Hora:', dataAssinatura);
+    drawInfo('Hash SHA-256:', docHash.substring(0, 40) + '...');
+
+    y -= 30;
+
+    page.drawText('VALIDADE JURIDICA', {
+      x: margin, y, size: 12, font: fontBold, color: rgb(0.1, 0.2, 0.5),
+    });
+    y -= 20;
+
+    const avisoLines = [
+      'Este documento foi assinado eletronicamente de forma simples,',
+      'conforme a Lei 14.063/2020, Art. 4 (assinatura eletronica simples).',
+      '',
+      'Evidencias registradas pela plataforma ArbitraX:',
+      '  - Identidade do signatario (CPF/CNPJ + email vinculado a conta)',
+      '  - Endereco IP e User-Agent do dispositivo',
+      '  - Hash SHA-256 do documento no momento da assinatura',
+      '  - Data/hora registrada pelo servidor',
+      '',
+      'ArbitraX - Plataforma de Arbitragem Digital',
+    ];
+    for (const line of avisoLines) {
+      page.drawText(line, { x: margin, y, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
+      y -= 14;
+    }
+
+    const signedPdfBytes = await pdfDoc.save({ useObjectStreams: false });
+    const signedPdfBuffer = Buffer.from(signedPdfBytes);
+    const hash = (await import('crypto')).createHash('sha256').update(signedPdfBuffer).digest('hex');
+
+    // 8. Upload PDF assinado
+    const storageKey = `arbitragens/${arbitragemId}/compromisso/compromisso-${arb.numero}.pdf`;
+
+    this.logger.log(`[assinar-simples] ${arb.numero}: ${signerName} assinando, PDF=${signedPdfBuffer.length} bytes`);
+
+    const uploaded = await this.storage.upload(signedPdfBuffer, storageKey, 'application/pdf');
+
+    // 9. Atualizar compromisso
+    const updateData: any = {
+      pdfUrl: uploaded.url,
+      hashSha256: hash,
+    };
+
+    // Registrar como "Assinatura Simples - Nome (CPF)"
+    const cnSimples = `Assinatura Simples - ${signerLabel}`;
+
+    if (isRequerente) {
+      updateData.assinReqAt = new Date();
+      updateData.assinaturaReqCn = cnSimples;
+    }
+    if (isRequerido) {
+      updateData.assinReqdoAt = new Date();
+      updateData.assinaturaReqdoCn = cnSimples;
+    }
+
+    const updated = await this.prisma.compromisso.update({
+      where: { id: compromisso.id },
+      data: updateData,
+    });
+
+    // 10. Se ambos assinaram
+    if (updated.assinReqAt && updated.assinReqdoAt) {
+      await this.prisma.compromisso.update({
+        where: { id: compromisso.id },
+        data: { status: 'assinado' },
+      });
+
+      await this.prisma.arbitragem.update({
+        where: { id: arbitragemId },
+        data: { status: 'EM_INSTRUCAO' },
+      });
+
+      this.events.emitCompromissoAssinado({
+        arbitragemId,
+        numero: arb.numero,
+        requerenteId: arb.requerenteId,
+        requeridoId: arb.requeridoId || '',
+      });
+    }
+
+    // 11. Audit log com evidencias completas
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        acao: 'COMPROMISSO_ASSINADO_SIMPLES',
+        entidade: 'compromisso',
+        entidadeId: compromisso.id,
+        dadosDepois: {
+          metodo: 'assinatura_simples',
+          signerName,
+          cpfCnpj: user?.cpfCnpj,
+          email: user?.email,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+          hash,
+          role: isRequerente ? 'requerente' : 'requerido',
+          pdfUrl: uploaded.url,
+        },
+      },
+    });
+
+    this.logger.log(`[assinar-simples] ${arb.numero}: assinado por ${signerName} (${meta.ip})`);
+
+    return {
+      success: true,
+      cn: cnSimples,
+      assinadoEm: new Date().toISOString(),
+      role: isRequerente ? 'requerente' : 'requerido',
+      metodo: 'simples',
+    };
+  }
+
   /** Webhook ZapSign */
   async processarWebhook(body: any) {
     const docToken = body.doc?.token;
