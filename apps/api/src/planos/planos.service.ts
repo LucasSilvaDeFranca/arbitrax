@@ -111,10 +111,15 @@ export class PlanosService implements OnModuleInit {
   }
 
   async incrementarUso(userId: string) {
-    await this.prisma.assinatura.update({
-      where: { userId },
-      data: { usadoMes: { increment: 1 } },
-    });
+    try {
+      await this.prisma.assinatura.update({
+        where: { userId },
+        data: { usadoMes: { increment: 1 } },
+      });
+    } catch {
+      // Usuario sem assinatura (planos desativados na fase de testes).
+      // Nao deve impedir criacao de arbitragem.
+    }
   }
 
   async resetarUsoMensal() {

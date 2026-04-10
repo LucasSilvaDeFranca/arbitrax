@@ -127,19 +127,33 @@ export class ArbitragensService {
       },
     });
 
-    // Escolha de arbitro (se solicitada)
-    if (dto.arbitroId) {
-      // TODO: Reativar verificacao de plano apos fase de testes
-      // const plano = assinatura?.plano;
-      // if (!plano?.escolherArbitro) {
-      //   throw new BadRequestException('Escolha de arbitro disponivel apenas nos planos Plus e Pro');
-      // }
+    // Designacao de arbitro
+    let arbitroDesignado: string | undefined = dto.arbitroId;
+
+    if (arbitroDesignado) {
+      // Escolha explicita do requerente
       await this.prisma.arbitragemArbitro.create({
         data: {
           arbitragemId: arbitragem.id,
-          arbitroId: dto.arbitroId,
+          arbitroId: arbitroDesignado,
         },
       });
+    } else if (!dto.modoArbitro || dto.modoArbitro === 'sistema') {
+      // Auto-select: pega o arbitro ativo com menos casos designados
+      const arbitro = await this.prisma.user.findFirst({
+        where: { role: 'ARBITRO', ativo: true },
+        orderBy: { arbitragemArbitros: { _count: 'asc' } },
+        select: { id: true },
+      });
+      if (arbitro) {
+        arbitroDesignado = arbitro.id;
+        await this.prisma.arbitragemArbitro.create({
+          data: {
+            arbitragemId: arbitragem.id,
+            arbitroId: arbitro.id,
+          },
+        });
+      }
     }
 
     // Audit log da criacao
@@ -155,7 +169,8 @@ export class ArbitragensService {
           regraEquidade: dto.regraEquidade ?? false,
           regraCostumes: dto.regraCostumes ?? false,
           modoArbitro: dto.modoArbitro || 'sistema',
-          arbitroId: dto.arbitroId,
+          arbitroId: arbitroDesignado || null,
+          modoArbitroEfetivo: arbitroDesignado ? (dto.arbitroId ? 'escolha' : 'sistema') : 'nenhum',
           valorCausa: dto.valorCausa,
           categoria: dto.categoria,
         },

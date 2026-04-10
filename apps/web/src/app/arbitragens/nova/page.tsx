@@ -76,6 +76,7 @@ export default function NovaArbitragemPage() {
   const update = (field: string, value: any) => setForm({ ...form, [field]: value });
 
   const handleSubmit = async () => {
+    if (loading) return; // Previne duplo-clique
     setError('');
     setLoading(true);
     try {
@@ -89,11 +90,11 @@ export default function NovaArbitragemPage() {
       if (!data.arbitroId) delete data.arbitroId;
 
       const result = await arbitragensApi.create(data, token);
+      // Nao reseta loading - pagina vai mudar pelo router.push
       router.push(`/arbitragens/${result.id}`);
     } catch (err: any) {
       setError(err.message || 'Erro ao criar arbitragem');
-    } finally {
-      setLoading(false);
+      setLoading(false); // So reseta se deu erro (permite tentar de novo)
     }
   };
 
