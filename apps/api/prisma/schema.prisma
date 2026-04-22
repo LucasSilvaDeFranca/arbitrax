@@ -126,6 +126,12 @@ model User {
   twoFactorSecret  String?  @map("two_factor_secret")
   twoFactorEnabled Boolean  @default(false) @map("two_factor_enabled")
 
+  // Recuperacao de senha (token expira em 10 min)
+  resetPasswordToken     String?   @unique @map("reset_password_token")
+  resetPasswordExpiresAt DateTime? @map("reset_password_expires_at")
+  // Timestamp da ultima troca de senha (para invalidar refresh tokens antigos)
+  passwordChangedAt      DateTime? @map("password_changed_at")
+
   // Certificado Digital A1
   certificadoA1Base64      String?   @map("certificado_a1_base64") @db.Text
   certificadoA1Senha       String?   @map("certificado_a1_senha")

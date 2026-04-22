@@ -138,6 +138,24 @@ export class EmailService {
     `);
   }
 
+  async enviarLinkRecuperacaoSenha(email: string, nome: string, token: string) {
+    const link = `${this.getFrontendUrl()}/recuperar-senha?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+    await this.send(email, 'Recuperacao de senha - ArbitraX', `
+      <h2>Redefinir sua senha</h2>
+      <p>Prezado(a) <strong>${nome}</strong>,</p>
+      <p>Recebemos uma solicitacao para redefinir a senha da sua conta ArbitraX.</p>
+      <p>Clique no botao abaixo para escolher uma nova senha:</p>
+      <div style="text-align:center;margin:30px 0;">
+        <a href="${link}" style="background:#1e40af;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
+          Redefinir Senha
+        </a>
+      </div>
+      <p style="color:#b91c1c;font-size:13px;"><strong>Atencao:</strong> este link expira em <strong>10 minutos</strong>.</p>
+      <p style="color:#999;font-size:12px;margin-top:20px;">Se voce nao solicitou esta alteracao, ignore este email. Sua senha atual permanece inalterada.</p>
+      <p style="color:#999;font-size:11px;word-break:break-all;margin-top:16px;">Caso o botao nao funcione, copie e cole este link no navegador:<br>${link}</p>
+    `);
+  }
+
   async enviarCodigoAssinatura(email: string, nome: string, codigo: string, casoNumero: string) {
     await this.send(email, `Codigo de assinatura - ${casoNumero}`, `
       <h2>Codigo de Assinatura Digital</h2>

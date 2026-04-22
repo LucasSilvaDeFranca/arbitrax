@@ -1,17 +1,22 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
+    private emailService: EmailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -127,10 +132,107 @@ export class AuthService {
         throw new UnauthorizedException('Token invalido');
       }
 
+      // Invalida refresh tokens emitidos antes da ultima troca de senha.
+      // payload.iat esta em segundos (UNIX time), passwordChangedAt em ms.
+      if (user.passwordChangedAt && payload.iat) {
+        const iatMs = payload.iat * 1000;
+        if (user.passwordChangedAt.getTime() > iatMs) {
+          throw new UnauthorizedException('Sessao invalidada. Faca login novamente.');
+        }
+      }
+
       return this.generateTokens(user.id, user.role);
     } catch {
       throw new UnauthorizedException('Token invalido ou expirado');
     }
+  }
+
+  /**
+   * Solicita recuperacao de senha.
+   * Anti-enumeracao: sempre retorna sucesso, mesmo que o email nao exista.
+   * Gera token aleatorio (32 bytes hex = 64 chars), salva com TTL de 10 min.
+   * Se solicitar novamente, invalida o token anterior (sobrescreve).
+   */
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    // Anti-enumeracao: retorna sucesso silenciosamente se nao achar
+    if (!user || !user.ativo) {
+      this.logger.log(`[forgot-password] Email nao cadastrado ou inativo: ${email}`);
+      return { success: true };
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: token,
+        resetPasswordExpiresAt: expiresAt,
+      },
+    });
+
+    // Envia email (nao bloqueia a resposta se falhar)
+    try {
+      await this.emailService.enviarLinkRecuperacaoSenha(user.email, user.nome, token);
+    } catch (err: any) {
+      this.logger.error(`[forgot-password] Falha ao enviar email: ${err.message}`);
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Redefine senha a partir do token.
+   * Valida token existe, nao expirou e a senha tem tamanho minimo.
+   * Apos redefinir: limpa o token e invalida refresh tokens (forca logout de outros devices).
+   */
+  async resetPassword(token: string, novaSenha: string) {
+    if (!token || token.length < 10) {
+      throw new BadRequestException('Token invalido');
+    }
+
+    if (novaSenha.length < 6) {
+      throw new BadRequestException('A senha deve ter no minimo 6 caracteres');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { resetPasswordToken: token },
+    });
+
+    if (!user || !user.ativo) {
+      throw new BadRequestException('Link invalido ou expirado. Solicite um novo.');
+    }
+
+    if (!user.resetPasswordExpiresAt || user.resetPasswordExpiresAt < new Date()) {
+      // Limpa token expirado
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { resetPasswordToken: null, resetPasswordExpiresAt: null },
+      });
+      throw new BadRequestException('Link expirado. Solicite um novo.');
+    }
+
+    const senhaHash = await bcrypt.hash(novaSenha, 10);
+
+    // Atualiza senha + limpa token + marca passwordChangedAt.
+    // O campo passwordChangedAt eh usado no refresh() para invalidar
+    // refresh tokens emitidos ANTES da troca de senha.
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        senhaHash,
+        resetPasswordToken: null,
+        resetPasswordExpiresAt: null,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    this.logger.log(`[reset-password] Senha redefinida com sucesso: ${user.email}`);
+    return { success: true, email: user.email };
   }
 
   async getMe(userId: string) {

@@ -133,4 +133,16 @@ export const authApi = {
     api('/api/v1/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
 
   me: (token: string) => api('/api/v1/auth/me', { token }),
+
+  forgotPassword: (email: string) =>
+    api<{ success: boolean }>('/api/v1/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, novaSenha: string) =>
+    api<{ success: boolean; email: string }>('/api/v1/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, novaSenha }),
+    }),
 };

@@ -1,19 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { authApi } from '@/lib/api';
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [form, setForm] = useState({ email: '', senha: '' });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('reset') === 'ok') {
+      setSuccess('Senha alterada com sucesso! Faca login com a nova senha.');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
@@ -35,6 +44,12 @@ export default function LoginPage() {
         <div className="bg-white rounded-xl shadow-lg p-8 dark:bg-slate-800/50 dark:border dark:border-slate-700/50 dark:shadow-none">
           <h1 className="text-2xl font-bold text-center text-primary-700 dark:text-white mb-6">Entrar no ArbitraX</h1>
 
+          {success && (
+            <div className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 p-3 rounded-lg mb-4 text-sm border border-green-200 dark:border-green-800">
+              {success}
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 p-3 rounded-lg mb-4 text-sm">{error}</div>
           )}
@@ -53,7 +68,15 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Senha</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Senha</label>
+                <Link
+                  href="/esqueci-senha"
+                  className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  Esqueci minha senha
+                </Link>
+              </div>
               <input
                 type="password"
                 required
@@ -83,5 +106,13 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
   );
 }
