@@ -61,6 +61,38 @@ export default function ArbitragemDetailPage() {
     }
   };
 
+  /** Acoes especificas do requerido — usam endpoints dedicados em vez do PATCH /status (ADMIN-only) */
+  const handleAceitar = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setTransitioning(true);
+    try {
+      const updated = await arbitragensApi.aceitar(id, token);
+      setArb(updated);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao aceitar convite');
+    } finally {
+      setTransitioning(false);
+    }
+  };
+
+  const handleRecusar = async () => {
+    const token = getToken();
+    if (!token) return;
+    if (!confirm('Tem certeza que deseja RECUSAR este convite? Esta acao nao pode ser desfeita.')) return;
+
+    setTransitioning(true);
+    try {
+      const updated = await arbitragensApi.recusar(id, token);
+      setArb(updated);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao recusar convite');
+    } finally {
+      setTransitioning(false);
+    }
+  };
+
   const handleIndicarAdvogado = async () => {
     const token = getToken();
     if (!token || !advogadoEmail.trim()) return;
@@ -230,14 +262,14 @@ export default function ArbitragemDetailPage() {
                   <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">Voce foi convidado para participar desta arbitragem.</p>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => handleTransition('AGUARDANDO_ASSINATURA')}
+                      onClick={handleAceitar}
                       disabled={transitioning}
                       className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
                     >
-                      Aceitar
+                      {transitioning ? 'Processando...' : 'Aceitar'}
                     </button>
                     <button
-                      onClick={() => handleTransition('RECUSADA')}
+                      onClick={handleRecusar}
                       disabled={transitioning}
                       className="px-6 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition disabled:opacity-50"
                     >

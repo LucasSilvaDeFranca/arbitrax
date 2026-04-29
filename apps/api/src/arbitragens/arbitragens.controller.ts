@@ -8,9 +8,12 @@ import {
   Query,
   UseGuards,
   Request,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ArbitragensService } from './arbitragens.service';
+import { ConvitesService } from '../convites/convites.service';
 import { CreateArbitragemDto } from './dto/create-arbitragem.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { ListArbitragensDto } from './dto/list-arbitragens.dto';
@@ -27,6 +30,7 @@ import { AdminService } from '../admin/admin.service';
 export class ArbitragensController {
   constructor(
     private arbitragensService: ArbitragensService,
+    private convitesService: ConvitesService,
     private prisma: PrismaService,
     private adminService: AdminService,
   ) {}
@@ -77,18 +81,54 @@ export class ArbitragensController {
   }
 
   @Post(':id/aceitar')
-  @Roles('USUARIO')
-  @ApiOperation({ summary: 'Requerido aceita convite de arbitragem' })
-  aceitar(@Param('id') id: string, @Request() req: any) {
-    // Checagem de papel processual (requerido) feita dentro do service via arbitragem.requeridoId
-    return this.arbitragensService.updateStatus(id, 'AGUARDANDO_ASSINATURA', req.user.sub, 'ADMIN');
+  @Roles('USUARIO', 'ADVOGADO', 'ARBITRO', 'ADMIN')
+  @ApiOperation({
+    summary: 'Requerido aceita convite (delegado ao ConvitesService para gerar compromisso, notificar etc)',
+  })
+  async aceitar(
+    @Param('id') id: string,
+    @Body() body: { aceiteRegras?: boolean; aceiteLei?: boolean; aceiteEquidade?: boolean; aceiteCostumes?: boolean },
+    @Request() req: any,
+  ) {
+    // Valida que o usuario logado eh o requerido desta arbitragem
+    const arb = await this.prisma.arbitragem.findUnique({
+      where: { id },
+      select: { requeridoId: true, status: true },
+    });
+    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
+    if (arb.requeridoId !== req.user.sub && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Apenas o requerido pode aceitar este convite');
+    }
+
+    // Busca convite vinculado e delega ao ConvitesService (faz status, compromisso, email, eventos)
+    const convite = await this.prisma.convite.findUnique({ where: { arbitragemId: id } });
+    if (!convite) throw new NotFoundException('Convite nao encontrado para esta arbitragem');
+
+    return this.convitesService.aceitar(convite.token, {
+      aceiteRegras: body?.aceiteRegras ?? true,
+      aceiteLei: body?.aceiteLei,
+      aceiteEquidade: body?.aceiteEquidade,
+      aceiteCostumes: body?.aceiteCostumes,
+    });
   }
 
   @Post(':id/recusar')
-  @Roles('USUARIO')
+  @Roles('USUARIO', 'ADVOGADO', 'ARBITRO', 'ADMIN')
   @ApiOperation({ summary: 'Requerido recusa convite de arbitragem' })
-  recusar(@Param('id') id: string, @Request() req: any) {
-    return this.arbitragensService.updateStatus(id, 'RECUSADA', req.user.sub, 'ADMIN');
+  async recusar(@Param('id') id: string, @Request() req: any) {
+    const arb = await this.prisma.arbitragem.findUnique({
+      where: { id },
+      select: { requeridoId: true },
+    });
+    if (!arb) throw new NotFoundException('Arbitragem nao encontrada');
+    if (arb.requeridoId !== req.user.sub && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Apenas o requerido pode recusar este convite');
+    }
+
+    const convite = await this.prisma.convite.findUnique({ where: { arbitragemId: id } });
+    if (!convite) throw new NotFoundException('Convite nao encontrado para esta arbitragem');
+
+    return this.convitesService.recusar(convite.token);
   }
 
   @Post(':id/indicar-advogado')

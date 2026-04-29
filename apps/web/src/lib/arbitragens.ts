@@ -42,6 +42,20 @@ export const arbitragensApi = {
       token,
     }),
 
+  /** Requerido aceita o convite (alternativa ao link publico /convite/[token]) */
+  aceitar: (id: string, token: string) =>
+    api<Arbitragem>(`/api/v1/arbitragens/${id}/aceitar`, {
+      method: 'POST',
+      token,
+    }),
+
+  /** Requerido recusa o convite */
+  recusar: (id: string, token: string) =>
+    api<Arbitragem>(`/api/v1/arbitragens/${id}/recusar`, {
+      method: 'POST',
+      token,
+    }),
+
   getTimeline: (id: string, token: string) =>
     api<any[]>(`/api/v1/arbitragens/${id}/timeline`, { token }),
 
